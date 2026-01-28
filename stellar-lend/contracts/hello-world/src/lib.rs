@@ -348,7 +348,6 @@ impl HelloContract {
     /// - Minimum collateral ratio requirements
     /// - Pause switch checks
     /// - Maximum borrow limits
-    ///
     /// # Arguments
     /// * `user` - The address of the user borrowing assets
     /// * `asset` - The address of the asset contract to borrow (None for native XLM)

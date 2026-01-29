@@ -238,11 +238,7 @@ impl BlockchainClient {
     }
 
     /// Wait for transaction confirmation (simplified interface)
-    pub async fn wait_for_confirmation(
-        &self,
-        tx_hash: &str,
-        is_soroban: bool,
-    ) -> Result<bool> {
+    pub async fn wait_for_confirmation(&self, tx_hash: &str, is_soroban: bool) -> Result<bool> {
         self.transaction_monitor
             .wait_for_confirmation(tx_hash, is_soroban)
             .await

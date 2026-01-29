@@ -2,8 +2,8 @@
 //!
 //! This example demonstrates how to submit a transaction and wait for confirmation.
 
-use stellarlend_client::{BlockchainClient, BlockchainConfig};
 use std::sync::Arc;
+use stellarlend_client::{BlockchainClient, BlockchainConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

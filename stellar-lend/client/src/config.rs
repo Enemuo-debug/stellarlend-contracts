@@ -281,7 +281,10 @@ mod tests {
         let config = BlockchainConfig::testnet();
         assert_eq!(config.network, Network::Testnet);
         assert_eq!(config.horizon_url, "https://horizon-testnet.stellar.org");
-        assert_eq!(config.soroban_rpc_url, "https://soroban-testnet.stellar.org");
+        assert_eq!(
+            config.soroban_rpc_url,
+            "https://soroban-testnet.stellar.org"
+        );
         assert!(config.validate().is_ok());
     }
 

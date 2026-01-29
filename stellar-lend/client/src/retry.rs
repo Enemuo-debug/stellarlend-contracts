@@ -85,10 +85,7 @@ impl RetryStrategy {
             match operation().await {
                 Ok(result) => {
                     if attempts > 1 {
-                        debug!(
-                            "Operation succeeded after {} attempts",
-                            attempts
-                        );
+                        debug!("Operation succeeded after {} attempts", attempts);
                     }
                     return Ok(result);
                 }
@@ -153,10 +150,7 @@ impl RetryStrategy {
             match operation().await {
                 Ok(result) => {
                     if attempts > 1 {
-                        debug!(
-                            "Operation succeeded after {} attempts",
-                            attempts
-                        );
+                        debug!("Operation succeeded after {} attempts", attempts);
                     }
                     return Ok(result);
                 }

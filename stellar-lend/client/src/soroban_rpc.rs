@@ -177,11 +177,9 @@ impl SorobanRpcClient {
 
         let result = self.call_rpc("getLatestLedger", json!({})).await?;
 
-        let sequence = result["sequence"]
-            .as_u64()
-            .ok_or_else(|| {
-                BlockchainError::InvalidResponse("Missing sequence in ledger response".to_string())
-            })?;
+        let sequence = result["sequence"].as_u64().ok_or_else(|| {
+            BlockchainError::InvalidResponse("Missing sequence in ledger response".to_string())
+        })?;
 
         debug!("Latest ledger: {}", sequence);
         Ok(sequence)
@@ -206,19 +204,11 @@ impl SorobanRpcClient {
 
         let result_xdr = result["results"][0]["xdr"].as_str().map(|s| s.to_string());
 
-        let transaction_data = result["transactionData"]
-            .as_str()
-            .ok_or_else(|| {
-                BlockchainError::InvalidResponse(
-                    "Missing transactionData in simulation".to_string(),
-                )
-            })?
-            .to_string();
+        let transaction_data = result["transactionData"].as_str().ok_or_else(|| {
+            BlockchainError::InvalidResponse("Missing transactionData in simulation".to_string())
+        })?.to_string();
 
-        let min_resource_fee = result["minResourceFee"]
-            .as_str()
-            .unwrap_or("0")
-            .to_string();
+        let min_resource_fee = result["minResourceFee"].as_str().unwrap_or("0").to_string();
 
         let events = result["events"]
             .as_array()

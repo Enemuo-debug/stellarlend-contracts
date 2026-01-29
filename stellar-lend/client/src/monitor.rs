@@ -116,27 +116,24 @@ impl TransactionMonitor {
 
             // Try to get transaction
             match self.horizon.get_transaction(tx_hash).await {
-                Ok(details) => {
-                    match details.status {
-                        TransactionStatus::Success => {
-                            info!("Transaction succeeded: {}", tx_hash);
-                            return Ok(MonitorResult::Success(details));
-                        }
-                        TransactionStatus::Failed => {
-                            warn!("Transaction failed: {}", tx_hash);
-                            let error_msg = details
-                                .error
-                                .unwrap_or_else(|| "Unknown error".to_string());
-                            return Ok(MonitorResult::Failed(error_msg));
-                        }
-                        TransactionStatus::Pending => {
-                            debug!("Transaction still pending: {}", tx_hash);
-                        }
-                        TransactionStatus::NotFound => {
-                            debug!("Transaction not yet in ledger: {}", tx_hash);
-                        }
+                Ok(details) => match details.status {
+                    TransactionStatus::Success => {
+                        info!("Transaction succeeded: {}", tx_hash);
+                        return Ok(MonitorResult::Success(details));
                     }
-                }
+                    TransactionStatus::Failed => {
+                        warn!("Transaction failed: {}", tx_hash);
+                        let error_msg =
+                            details.error.unwrap_or_else(|| "Unknown error".to_string());
+                        return Ok(MonitorResult::Failed(error_msg));
+                    }
+                    TransactionStatus::Pending => {
+                        debug!("Transaction still pending: {}", tx_hash);
+                    }
+                    TransactionStatus::NotFound => {
+                        debug!("Transaction not yet in ledger: {}", tx_hash);
+                    }
+                },
                 Err(BlockchainError::TransactionNotFound(_)) => {
                     debug!("Transaction not yet in ledger: {}", tx_hash);
                 }
@@ -175,26 +172,22 @@ impl TransactionMonitor {
 
             // Try to get transaction
             match self.soroban_rpc.get_transaction(tx_hash).await {
-                Ok(result) => {
-                    match result.status {
-                        TransactionStatus::Success => {
-                            info!("Soroban transaction succeeded: {}", tx_hash);
-                            return Ok(MonitorResult::SorobanSuccess(result));
-                        }
-                        TransactionStatus::Failed => {
-                            warn!("Soroban transaction failed: {}", tx_hash);
-                            return Ok(MonitorResult::Failed(
-                                "Transaction failed".to_string(),
-                            ));
-                        }
-                        TransactionStatus::Pending => {
-                            debug!("Soroban transaction still pending: {}", tx_hash);
-                        }
-                        TransactionStatus::NotFound => {
-                            debug!("Soroban transaction not yet in ledger: {}", tx_hash);
-                        }
+                Ok(result) => match result.status {
+                    TransactionStatus::Success => {
+                        info!("Soroban transaction succeeded: {}", tx_hash);
+                        return Ok(MonitorResult::SorobanSuccess(result));
                     }
-                }
+                    TransactionStatus::Failed => {
+                        warn!("Soroban transaction failed: {}", tx_hash);
+                        return Ok(MonitorResult::Failed("Transaction failed".to_string()));
+                    }
+                    TransactionStatus::Pending => {
+                        debug!("Soroban transaction still pending: {}", tx_hash);
+                    }
+                    TransactionStatus::NotFound => {
+                        debug!("Soroban transaction not yet in ledger: {}", tx_hash);
+                    }
+                },
                 Err(BlockchainError::TransactionNotFound(_)) => {
                     debug!("Soroban transaction not yet in ledger: {}", tx_hash);
                 }
@@ -209,11 +202,7 @@ impl TransactionMonitor {
     }
 
     /// Monitor a transaction with automatic detection (Horizon vs Soroban)
-    pub async fn monitor(
-        &self,
-        tx_hash: &str,
-        options: MonitorOptions,
-    ) -> Result<MonitorResult> {
+    pub async fn monitor(&self, tx_hash: &str, options: MonitorOptions) -> Result<MonitorResult> {
         if options.use_soroban_rpc {
             self.monitor_soroban_transaction(tx_hash, options).await
         } else {
@@ -224,11 +213,7 @@ impl TransactionMonitor {
     /// Wait for a transaction to be confirmed (simplified interface)
     ///
     /// Returns true if transaction succeeded, false if failed or timed out
-    pub async fn wait_for_confirmation(
-        &self,
-        tx_hash: &str,
-        is_soroban: bool,
-    ) -> Result<bool> {
+    pub async fn wait_for_confirmation(&self, tx_hash: &str, is_soroban: bool) -> Result<bool> {
         let options = MonitorOptions::from_config(&self.config);
         let options = if is_soroban {
             options.with_soroban_rpc()

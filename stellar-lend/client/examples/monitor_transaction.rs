@@ -2,8 +2,8 @@
 //!
 //! This example demonstrates how to monitor transactions with custom polling and timeout settings.
 
-use stellarlend_client::{BlockchainClient, BlockchainConfig, MonitorOptions, MonitorResult};
 use std::sync::Arc;
+use stellarlend_client::{BlockchainClient, BlockchainConfig, MonitorOptions, MonitorResult};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,10 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✓ Transaction succeeded!");
             println!("  - Hash: {}", details.hash);
             println!("  - Ledger: {:?}", details.ledger);
-            println!(
-                "  - Fee Charged: {}",
-                details.fee_charged.unwrap_or(0)
-            );
+            println!("  - Fee Charged: {}", details.fee_charged.unwrap_or(0));
             println!("  - Operations: {:?}", details.operation_count);
         }
         Ok(MonitorResult::Failed(error)) => {

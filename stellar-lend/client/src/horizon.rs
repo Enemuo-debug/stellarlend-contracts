@@ -7,8 +7,8 @@ use crate::config::BlockchainConfig;
 use crate::error::{BlockchainError, Result};
 use crate::retry::RetryStrategy;
 use crate::types::{
-    AccountAddress, AccountResponse, NetworkInfo, Page, TransactionDetails,
-    TransactionEnvelopeXdr, TransactionHash, TransactionStatus, TransactionSubmitResponse,
+    AccountAddress, AccountResponse, NetworkInfo, Page, TransactionDetails, TransactionEnvelopeXdr,
+    TransactionHash, TransactionStatus, TransactionSubmitResponse,
 };
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

@@ -2668,7 +2668,7 @@ fn test_risk_asset_params_configuration() {
 
         // Verify parameters were stored correctly
         let retrieved: AssetParams = env.storage().persistent().get(&key).unwrap();
-        assert_eq!(retrieved.deposit_enabled, true);
+        assert!(retrieved.deposit_enabled);
         assert_eq!(retrieved.collateral_factor, 7500);
         assert_eq!(retrieved.max_deposit, 1_000_000);
     });
@@ -2783,7 +2783,7 @@ fn test_risk_multiple_pause_switches_all_active() {
     let env = create_test_env();
     let contract_id = env.register(HelloContract, ());
 
-    let user = Address::generate(&env);
+    let _user = Address::generate(&env);
 
     // Set all pause switches to true
     env.as_contract(&contract_id, || {
@@ -2994,7 +2994,7 @@ fn test_risk_max_deposit_zero_no_limit() {
 fn test_risk_deposit_at_exact_max_limit() {
     let env = create_test_env();
     let contract_id = env.register(HelloContract, ());
-    let client = HelloContractClient::new(&env, &contract_id);
+    let _client = HelloContractClient::new(&env, &contract_id);
 
     let user = Address::generate(&env);
     let admin = Address::generate(&env);
@@ -3046,7 +3046,7 @@ fn test_risk_emergency_full_protocol_pause() {
     let env = create_test_env();
     let contract_id = env.register(HelloContract, ());
 
-    let user = Address::generate(&env);
+    let _user = Address::generate(&env);
 
     // Simulate emergency pause - all operations blocked
     env.as_contract(&contract_id, || {
@@ -3496,7 +3496,7 @@ fn test_risk_reenable_asset_restores_deposit() {
         use deposit::AssetParams;
         let key = DepositDataKey::AssetParams(token.clone());
         let params: AssetParams = env.storage().persistent().get(&key).unwrap();
-        assert_eq!(params.deposit_enabled, true);
+        assert!(params.deposit_enabled);
     });
 }
 

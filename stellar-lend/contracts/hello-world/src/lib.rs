@@ -7,17 +7,22 @@ mod deposit;
 mod events;
 mod repay;
 mod risk_management;
+mod risk_params;
 mod withdraw;
 
 use borrow::borrow_asset;
 use deposit::deposit_collateral;
 use repay::repay_debt;
 use risk_management::{
-    can_be_liquidated, get_close_factor, get_liquidation_incentive,
-    get_liquidation_incentive_amount, get_liquidation_threshold, get_max_liquidatable_amount,
-    get_min_collateral_ratio, initialize_risk_management, is_emergency_paused, is_operation_paused,
-    require_min_collateral_ratio, set_emergency_pause, set_pause_switch, set_pause_switches,
-    set_risk_params, RiskConfig, RiskManagementError,
+    initialize_risk_management, is_emergency_paused, is_operation_paused,
+    set_pause_switch, set_pause_switches, check_emergency_pause, require_admin,
+    RiskConfig, RiskManagementError,
+};
+use risk_params::{
+    can_be_liquidated,
+    get_liquidation_incentive_amount, get_max_liquidatable_amount,
+    initialize_risk_params, require_min_collateral_ratio,
+    RiskParamsError
 };
 use withdraw::withdraw_collateral;
 
@@ -29,9 +34,8 @@ use analytics::{
 mod cross_asset;
 #[allow(unused_imports)]
 use cross_asset::{
-    cross_asset_borrow, cross_asset_deposit, cross_asset_repay, cross_asset_withdraw,
     get_asset_config_by_address, get_asset_list, get_user_asset_position,
-    get_user_position_summary, initialize, initialize_asset, update_asset_config,
+    get_user_position_summary, initialize_asset, update_asset_config,
     update_asset_price, AssetConfig, AssetKey, AssetPosition, CrossAssetError, UserPositionSummary,
 };
 
@@ -83,6 +87,7 @@ impl HelloContract {
     /// Returns Ok(()) on success
     pub fn initialize(env: Env, admin: Address) -> Result<(), RiskManagementError> {
         initialize_risk_management(&env, admin.clone())?;
+        initialize_risk_params(&env).map_err(|_| RiskManagementError::InvalidParameter)?;
         // Initialize interest rate config with default parameters
         initialize_interest_rate_config(&env, admin.clone())
             .map_err(|_| RiskManagementError::Unauthorized)?;
@@ -140,14 +145,22 @@ impl HelloContract {
         close_factor: Option<i128>,
         liquidation_incentive: Option<i128>,
     ) -> Result<(), RiskManagementError> {
-        set_risk_params(
+        require_admin(&env, &caller)?;
+        check_emergency_pause(&env)?;
+        risk_params::set_risk_params(
             &env,
-            caller,
             min_collateral_ratio,
             liquidation_threshold,
             close_factor,
             liquidation_incentive,
-        )
+        ).map_err(|e| match e {
+            RiskParamsError::ParameterChangeTooLarge => RiskManagementError::ParameterChangeTooLarge,
+            RiskParamsError::InvalidCollateralRatio => RiskManagementError::InvalidCollateralRatio,
+            RiskParamsError::InvalidLiquidationThreshold => RiskManagementError::InvalidLiquidationThreshold,
+            RiskParamsError::InvalidCloseFactor => RiskManagementError::InvalidCloseFactor,
+            RiskParamsError::InvalidLiquidationIncentive => RiskManagementError::InvalidLiquidationIncentive,
+            _ => RiskManagementError::InvalidParameter,
+        })
     }
 
     /// Set pause switch for an operation (admin only)
@@ -199,7 +212,7 @@ impl HelloContract {
         caller: Address,
         paused: bool,
     ) -> Result<(), RiskManagementError> {
-        set_emergency_pause(&env, caller, paused)
+        risk_management::set_emergency_pause(&env, caller, paused)
     }
 
     /// Get current risk configuration
@@ -215,7 +228,7 @@ impl HelloContract {
     /// # Returns
     /// Returns the minimum collateral ratio in basis points
     pub fn get_min_collateral_ratio(env: Env) -> Result<i128, RiskManagementError> {
-        get_min_collateral_ratio(&env)
+        risk_params::get_min_collateral_ratio(&env).map_err(|_| RiskManagementError::InvalidParameter)
     }
 
     /// Get liquidation threshold
@@ -223,7 +236,7 @@ impl HelloContract {
     /// # Returns
     /// Returns the liquidation threshold in basis points
     pub fn get_liquidation_threshold(env: Env) -> Result<i128, RiskManagementError> {
-        get_liquidation_threshold(&env)
+        risk_params::get_liquidation_threshold(&env).map_err(|_| RiskManagementError::InvalidParameter)
     }
 
     /// Get close factor
@@ -231,7 +244,7 @@ impl HelloContract {
     /// # Returns
     /// Returns the close factor in basis points
     pub fn get_close_factor(env: Env) -> Result<i128, RiskManagementError> {
-        get_close_factor(&env)
+        risk_params::get_close_factor(&env).map_err(|_| RiskManagementError::InvalidParameter)
     }
 
     /// Get liquidation incentive
@@ -239,7 +252,7 @@ impl HelloContract {
     /// # Returns
     /// Returns the liquidation incentive in basis points
     pub fn get_liquidation_incentive(env: Env) -> Result<i128, RiskManagementError> {
-        get_liquidation_incentive(&env)
+        risk_params::get_liquidation_incentive(&env).map_err(|_| RiskManagementError::InvalidParameter)
     }
 
     /// Check if an operation is paused
@@ -274,7 +287,7 @@ impl HelloContract {
         collateral_value: i128,
         debt_value: i128,
     ) -> Result<(), RiskManagementError> {
-        require_min_collateral_ratio(&env, collateral_value, debt_value)
+        require_min_collateral_ratio(&env, collateral_value, debt_value).map_err(|_| RiskManagementError::InsufficientCollateralRatio)
     }
 
     /// Check if position can be liquidated
@@ -290,7 +303,7 @@ impl HelloContract {
         collateral_value: i128,
         debt_value: i128,
     ) -> Result<bool, RiskManagementError> {
-        can_be_liquidated(&env, collateral_value, debt_value)
+        can_be_liquidated(&env, collateral_value, debt_value).map_err(|_| RiskManagementError::InvalidParameter)
     }
 
     /// Calculate maximum liquidatable amount
@@ -304,7 +317,7 @@ impl HelloContract {
         env: Env,
         debt_value: i128,
     ) -> Result<i128, RiskManagementError> {
-        get_max_liquidatable_amount(&env, debt_value)
+        get_max_liquidatable_amount(&env, debt_value).map_err(|_| RiskManagementError::Overflow)
     }
 
     /// Calculate liquidation incentive amount
@@ -318,7 +331,7 @@ impl HelloContract {
         env: Env,
         liquidated_amount: i128,
     ) -> Result<i128, RiskManagementError> {
-        get_liquidation_incentive_amount(&env, liquidated_amount)
+        get_liquidation_incentive_amount(&env, liquidated_amount).map_err(|_| RiskManagementError::Overflow)
     }
 
     /// Withdraw collateral from the protocol
@@ -703,7 +716,7 @@ impl HelloContract {
         bridge: Address,
         fee_bps: i128,
     ) -> Result<(), BridgeError> {
-        register_bridge(&env, caller, network_id, bridge, fee_bps)
+        bridge::register_bridge(&env, caller, network_id, bridge, fee_bps)
     }
 
     /// Set bridge fee
@@ -718,7 +731,7 @@ impl HelloContract {
         network_id: u32,
         fee_bps: i128,
     ) -> Result<(), BridgeError> {
-        set_bridge_fee(&env, caller, network_id, fee_bps)
+        bridge::set_bridge_fee(&env, caller, network_id, fee_bps)
     }
 
     /// Deposit through a bridge
@@ -735,7 +748,7 @@ impl HelloContract {
         asset: Option<Address>,
         amount: i128,
     ) -> Result<i128, BridgeError> {
-        bridge_deposit(&env, user, network_id, asset, amount)
+        bridge::bridge_deposit(&env, user, network_id, asset, amount)
     }
 
     /// Withdraw through a bridge
@@ -752,17 +765,17 @@ impl HelloContract {
         asset: Option<Address>,
         amount: i128,
     ) -> Result<i128, BridgeError> {
-        bridge_withdraw(&env, user, network_id, asset, amount)
+        bridge::bridge_withdraw(&env, user, network_id, asset, amount)
     }
 
     /// List all bridges
     pub fn list_bridges(env: Env) -> Map<u32, BridgeConfig> {
-        list_bridges(&env)
+        bridge::list_bridges(&env)
     }
 
     /// Get configuration of a specific bridge
     pub fn get_bridge_config(env: Env, network_id: u32) -> Result<BridgeConfig, BridgeError> {
-        get_bridge_config(&env, network_id)
+        bridge::get_bridge_config(&env, network_id)
     }
 
     // ============================================================================

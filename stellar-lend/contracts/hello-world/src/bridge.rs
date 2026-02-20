@@ -28,14 +28,18 @@ pub enum BridgeError {
 const ADMIN: Symbol = symbol_short!("admin");
 const BRIDGES: Symbol = symbol_short!("bridges");
 
-fn require_admin(env: &Env) -> Result<(), BridgeError> {
+fn require_admin(env: &Env, caller: &Address) -> Result<(), BridgeError> {
     let admin: Address = env
         .storage()
         .persistent()
         .get(&ADMIN)
         .ok_or(BridgeError::NotAuthorized)?;
 
-    admin.require_auth();
+    if caller != &admin {
+        return Err(BridgeError::NotAuthorized);
+    }
+
+    caller.require_auth();
     Ok(())
 }
 
@@ -69,7 +73,7 @@ pub fn register_bridge(
     bridge: Address,
     fee_bps: i128,
 ) -> Result<(), BridgeError> {
-    require_admin(env)?;
+    require_admin(env, &_caller)?;
 
     if !(0..=10000).contains(&fee_bps) {
         return Err(BridgeError::InvalidFee);
@@ -105,7 +109,7 @@ pub fn set_bridge_fee(
     network_id: u32,
     fee_bps: i128,
 ) -> Result<(), BridgeError> {
-    require_admin(env)?;
+    require_admin(env, &_caller)?;
 
     if !(0..=10000).contains(&fee_bps) {
         return Err(BridgeError::InvalidFee);
@@ -138,8 +142,6 @@ pub fn bridge_deposit(
     asset: Option<Address>,
     amount: i128,
 ) -> Result<i128, BridgeError> {
-    user.require_auth();
-    
     if amount <= 0 {
         return Err(BridgeError::InvalidAmount);
     }
@@ -186,8 +188,6 @@ pub fn bridge_withdraw(
     asset: Option<Address>,
     amount: i128,
 ) -> Result<i128, BridgeError> {
-    user.require_auth();
-
     if amount <= 0 {
         return Err(BridgeError::InvalidAmount);
     }

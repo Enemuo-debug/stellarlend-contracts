@@ -347,7 +347,7 @@ fn test_create_proposal_success() {
     let (env, cid, admin) = setup();
     
     with_contract!(env, &cid, {
-        let proposal_type = ProposalType::SetMinCollateralRatio(12_000);
+        let proposal_type = ProposalType::MinCollateralRatio(12_000);
         let description = Symbol::new(&env, "increase_mcr");
         
         let proposal_id = create_proposal(

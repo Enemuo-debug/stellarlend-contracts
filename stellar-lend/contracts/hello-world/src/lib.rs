@@ -54,6 +54,19 @@ use interest_rate::{
     InterestRateError,
 };
 
+
+mod monitor;
+
+pub use monitor::{
+    Monitor, MonitorClient, MonitorError, MonitorKey, MonitorSignal,
+    HealthStatus, HealthSignal, PerformanceSignal, SecuritySignal,
+    SecuritySeverity, SignalKind,
+    MAX_TARGET_LEN, MAX_MESSAGE_LEN, MAX_METRIC_LEN, MAX_UNIT_LEN, MAX_REPORTERS,
+};
+
+#[cfg(test)]
+mod monitor_test;
+
 #[contract]
 pub struct HelloContract;
 

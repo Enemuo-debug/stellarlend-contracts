@@ -20,7 +20,7 @@ use crate::{HelloContract, HelloContractClient};
 use soroban_sdk::{
     contracttype,
     testutils::{Address as _, Events},
-    Address, Env, Symbol, TryFromVal, Val,
+    Address, Env, Symbol, TryFromVal,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -582,14 +582,14 @@ fn test_pause_state_changed_event_structure() {
         let (_c0, _t0, d0) = all.get_unchecked(0);
         let p0: TestPauseStateChangedEvent =
             TestPauseStateChangedEvent::try_from_val(&env, &d0).unwrap();
-        assert_eq!(p0.paused, true);
+        assert!(p0.paused);
         assert_eq!(p0.timestamp, 100);
         assert_eq!(p0.operation, operation);
 
         let (_c1, _t1, d1) = all.get_unchecked(1);
         let p1: TestPauseStateChangedEvent =
             TestPauseStateChangedEvent::try_from_val(&env, &d1).unwrap();
-        assert_eq!(p1.paused, false);
+        assert!(!p1.paused);
         assert_eq!(p1.timestamp, 200);
     });
 }
@@ -848,7 +848,7 @@ fn test_event_sequence_deposit_borrow_repay() {
     let after_deposit = env.events().all().len();
     assert!(after_deposit > 0, "Deposit should emit at least one event");
 
-    let res = client.borrow_asset(&user, &None, &10_000);
+    let _res = client.borrow_asset(&user, &None, &10_000);
     let after_borrow = env.events().all().len();
 
     assert!(

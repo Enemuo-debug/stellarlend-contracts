@@ -294,3 +294,41 @@ pub fn emit_risk_params_updated(e: &Env, event: RiskParamsUpdatedEvent) {
 pub fn emit_pause_state_changed(e: &Env, event: PauseStateChangedEvent) {
     event.publish(e);
 }
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct PositionUpdatedEvent {
+    pub user: Address,
+    pub collateral: i128,
+    pub debt: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AnalyticsUpdatedEvent {
+    pub user: Address,
+    pub activity_type: soroban_sdk::String,
+    pub amount: i128,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct UserActivityTrackedEvent {
+    pub user: Address,
+    pub operation: Symbol,
+    pub amount: i128,
+    pub timestamp: u64,
+}
+
+pub fn emit_position_updated(e: &Env, event: PositionUpdatedEvent) {
+    event.publish(e);
+}
+
+pub fn emit_analytics_updated(e: &Env, event: AnalyticsUpdatedEvent) {
+    event.publish(e);
+}
+
+pub fn emit_user_activity_tracked(e: &Env, event: UserActivityTrackedEvent) {
+    event.publish(e);
+}

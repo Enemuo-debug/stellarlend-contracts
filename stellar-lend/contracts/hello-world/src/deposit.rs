@@ -25,7 +25,10 @@
 #![allow(unused)]
 use soroban_sdk::{contracterror, contracttype, Address, Env, IntoVal, Map, Symbol, Val, Vec};
 
-use crate::events::{emit_deposit, DepositEvent};
+use crate::events::{
+    emit_analytics_updated, emit_deposit, emit_position_updated, emit_user_activity_tracked,
+    AnalyticsUpdatedEvent, DepositEvent, PositionUpdatedEvent, UserActivityTrackedEvent,
+};
 
 /// Errors that can occur during deposit operations
 #[contracterror]
@@ -466,16 +469,14 @@ pub fn add_activity_log(
 
 /// Emit position updated event
 pub fn emit_position_updated_event(env: &Env, user: &Address, position: &Position) {
-    let topics = (Symbol::new(env, "position_updated"), user.clone());
-    let mut data: Vec<Val> = Vec::new(env);
-    data.push_back(Symbol::new(env, "user").into_val(env));
-    data.push_back(user.clone().into_val(env));
-    data.push_back(Symbol::new(env, "collateral").into_val(env));
-    data.push_back(position.collateral.into_val(env));
-    data.push_back(Symbol::new(env, "debt").into_val(env));
-    data.push_back(position.debt.into_val(env));
-
-    env.events().publish(topics, data);
+    emit_position_updated(
+        env,
+        PositionUpdatedEvent {
+            user: user.clone(),
+            collateral: position.collateral,
+            debt: position.debt,
+        },
+    );
 }
 
 /// Emit analytics updated event
@@ -486,19 +487,16 @@ pub fn emit_analytics_updated_event(
     amount: i128,
     timestamp: u64,
 ) {
-    use soroban_sdk::{String, Val};
-    let topics = (Symbol::new(env, "analytics_updated"), user.clone());
-    let mut data: Vec<Val> = Vec::new(env);
-    data.push_back(Symbol::new(env, "user").into_val(env));
-    data.push_back(user.clone().into_val(env));
-    data.push_back(Symbol::new(env, "activity_type").into_val(env));
-    data.push_back(String::from_str(env, activity_type).into_val(env));
-    data.push_back(Symbol::new(env, "amount").into_val(env));
-    data.push_back(amount.into_val(env));
-    data.push_back(Symbol::new(env, "timestamp").into_val(env));
-    data.push_back(timestamp.into_val(env));
-
-    env.events().publish(topics, data);
+    use soroban_sdk::String;
+    emit_analytics_updated(
+        env,
+        AnalyticsUpdatedEvent {
+            user: user.clone(),
+            activity_type: String::from_str(env, activity_type),
+            amount,
+            timestamp,
+        },
+    );
 }
 
 /// Emit user activity tracked event
@@ -509,19 +507,15 @@ pub fn emit_user_activity_tracked_event(
     amount: i128,
     timestamp: u64,
 ) {
-    use soroban_sdk::Val;
-    let topics = (Symbol::new(env, "user_activity_tracked"), user.clone());
-    let mut data: Vec<Val> = Vec::new(env);
-    data.push_back(Symbol::new(env, "user").into_val(env));
-    data.push_back(user.clone().into_val(env));
-    data.push_back(Symbol::new(env, "operation").into_val(env));
-    data.push_back(operation.into_val(env));
-    data.push_back(Symbol::new(env, "amount").into_val(env));
-    data.push_back(amount.into_val(env));
-    data.push_back(Symbol::new(env, "timestamp").into_val(env));
-    data.push_back(timestamp.into_val(env));
-
-    env.events().publish(topics, data);
+    emit_user_activity_tracked(
+        env,
+        UserActivityTrackedEvent {
+            user: user.clone(),
+            operation,
+            amount,
+            timestamp,
+        },
+    );
 }
 
 #[contracttype]

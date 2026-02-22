@@ -271,6 +271,6 @@ impl AmmContract {
 }
 
 #[cfg(test)]
-mod test;
+mod liquidate_test;
 #[cfg(test)]
-   mod liquidate_test;
+mod test;

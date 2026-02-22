@@ -285,7 +285,10 @@ fn test_undercollateralized_position_is_liquidatable() {
     );
 
     let is_liquidatable = pool.is_liquidatable(&borrower);
-    assert!(is_liquidatable, "Borrower with HF < 1.0 must be flagged as liquidatable");
+    assert!(
+        is_liquidatable,
+        "Borrower with HF < 1.0 must be flagged as liquidatable"
+    );
 }
 
 /// Test: Healthy position (HF >= 1.0) is NOT flagged as liquidatable.
@@ -300,8 +303,7 @@ fn test_healthy_position_not_liquidatable() {
     let admin = Address::generate(&env);
     pool.initialize(&admin);
 
-    let (collateral_token, debt_token, borrower) =
-        setup_healthy_borrower(&env, &pool, &admin);
+    let (collateral_token, debt_token, borrower) = setup_healthy_borrower(&env, &pool, &admin);
 
     let health_factor = pool.get_health_factor(&borrower);
 
@@ -312,7 +314,10 @@ fn test_healthy_position_not_liquidatable() {
     );
 
     let is_liquidatable = pool.is_liquidatable(&borrower);
-    assert!(!is_liquidatable, "Borrower with HF >= 1.0 must NOT be liquidatable");
+    assert!(
+        !is_liquidatable,
+        "Borrower with HF >= 1.0 must NOT be liquidatable"
+    );
 }
 
 /// Test: HF exactly at 1.0 boundary is NOT liquidatable.
@@ -331,18 +336,26 @@ fn test_health_factor_exactly_one_not_liquidatable() {
     let debt_token = Address::generate(&env);
     let borrower = Address::generate(&env);
 
-    pool.add_reserve(&admin, &collateral_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: true,
-    });
-    pool.add_reserve(&admin, &debt_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: false,
-    });
+    pool.add_reserve(
+        &admin,
+        &collateral_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: true,
+        },
+    );
+    pool.add_reserve(
+        &admin,
+        &debt_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: false,
+        },
+    );
 
     // HF = (100 * 0.75) / 75 = exactly 1.0
     pool.deposit(&admin, &borrower, &collateral_token, &(100 * ONE));
@@ -366,11 +379,13 @@ fn test_position_becomes_liquidatable_after_price_drop() {
     let admin = Address::generate(&env);
     pool.initialize(&admin);
 
-    let (collateral_token, debt_token, borrower) =
-        setup_healthy_borrower(&env, &pool, &admin);
+    let (collateral_token, debt_token, borrower) = setup_healthy_borrower(&env, &pool, &admin);
 
     // Confirm healthy before price drop
-    assert!(!pool.is_liquidatable(&borrower), "Must be healthy before price drop");
+    assert!(
+        !pool.is_liquidatable(&borrower),
+        "Must be healthy before price drop"
+    );
 
     // Simulate collateral price dropping 50%
     pool.update_asset_price(&admin, &collateral_token, &(5_000_000)); // 0.5 in 7-decimal
@@ -397,12 +412,16 @@ fn test_zero_debt_position_not_liquidatable() {
     let collateral_token = Address::generate(&env);
     let borrower = Address::generate(&env);
 
-    pool.add_reserve(&admin, &collateral_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: true,
-    });
+    pool.add_reserve(
+        &admin,
+        &collateral_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: true,
+        },
+    );
 
     // Deposit only, no borrow
     pool.deposit(&admin, &borrower, &collateral_token, &(100 * ONE));
@@ -429,18 +448,26 @@ fn test_health_factor_calculation_is_correct() {
     let debt_token = Address::generate(&env);
     let borrower = Address::generate(&env);
 
-    pool.add_reserve(&admin, &collateral_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS, // 75%
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: true,
-    });
-    pool.add_reserve(&admin, &debt_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: false,
-    });
+    pool.add_reserve(
+        &admin,
+        &collateral_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS, // 75%
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: true,
+        },
+    );
+    pool.add_reserve(
+        &admin,
+        &debt_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: false,
+        },
+    );
 
     // HF = (200 * 0.75) / 100 = 1.5
     pool.deposit(&admin, &borrower, &collateral_token, &(200 * ONE));
@@ -449,7 +476,10 @@ fn test_health_factor_calculation_is_correct() {
     let hf = pool.get_health_factor(&borrower);
     let expected_hf = 1_5000000i128; // 1.5 in 7-decimal fixed point
 
-    assert_eq!(hf, expected_hf, "Health factor must equal (200 * 0.75) / 100 = 1.5");
+    assert_eq!(
+        hf, expected_hf,
+        "Health factor must equal (200 * 0.75) / 100 = 1.5"
+    );
 }
 
 // ===========================================================================
@@ -484,7 +514,10 @@ fn test_partial_liquidation_success() {
         &repay_amount,
     );
 
-    assert!(result.is_ok(), "Partial liquidation within close factor must succeed");
+    assert!(
+        result.is_ok(),
+        "Partial liquidation within close factor must succeed"
+    );
 }
 
 /// Test: Borrower debt is reduced by exactly repay_amount after partial liquidation.
@@ -510,7 +543,8 @@ fn test_partial_liquidation_reduces_debt_correctly() {
         &debt_token,
         &collateral_token,
         &repay_amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let debt_after = pool.get_user_debt(&borrower, &debt_token);
 
@@ -547,7 +581,8 @@ fn test_partial_liquidation_liquidator_receives_bonus() {
         &debt_token,
         &collateral_token,
         &repay_amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let collateral_after = pool.get_user_balance(&liquidator, &collateral_token);
     let received = collateral_after - collateral_before;
@@ -583,7 +618,8 @@ fn test_partial_liquidation_borrower_collateral_reduced() {
         &debt_token,
         &collateral_token,
         &repay_amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let borrower_collateral_after = pool.get_user_balance(&borrower, &collateral_token);
     let seized = expected_seized(repay_amount, LIQUIDATION_BONUS_BPS);
@@ -620,14 +656,16 @@ fn test_partial_liquidation_improves_health_factor() {
         &debt_token,
         &collateral_token,
         &repay_amount,
-    ).unwrap();
+    )
+    .unwrap();
 
     let hf_after = pool.get_health_factor(&borrower);
 
     assert!(
         hf_after > hf_before,
         "Health factor must improve after partial liquidation: before={}, after={}",
-        hf_before, hf_after
+        hf_before,
+        hf_after
     );
 }
 
@@ -640,7 +678,7 @@ fn test_partial_liquidation_improves_health_factor() {
 /// Test: Full liquidation (repay 100% of debt) succeeds.
 ///
 /// Some protocols allow full liquidation in one call when HF is very low.
-/// If the protocol uses close factor strictly at 50%, this should revert — 
+/// If the protocol uses close factor strictly at 50%, this should revert —
 /// adjust the assertion accordingly for your implementation.
 #[test]
 fn test_full_liquidation_succeeds_when_allowed() {
@@ -656,18 +694,26 @@ fn test_full_liquidation_succeeds_when_allowed() {
     let debt_token = Address::generate(&env);
     let borrower = Address::generate(&env);
 
-    pool.add_reserve(&admin, &collateral_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: true,
-    });
-    pool.add_reserve(&admin, &debt_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: false,
-    });
+    pool.add_reserve(
+        &admin,
+        &collateral_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: true,
+        },
+    );
+    pool.add_reserve(
+        &admin,
+        &debt_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: false,
+        },
+    );
 
     pool.deposit(&admin, &borrower, &collateral_token, &(50 * ONE));
     pool.borrow(&admin, &borrower, &debt_token, &(90 * ONE));
@@ -686,7 +732,10 @@ fn test_full_liquidation_succeeds_when_allowed() {
 
     // Note: If your protocol enforces close factor even here, change to:
     // assert!(result.is_err(), "Full liquidation must be blocked by close factor");
-    assert!(result.is_ok(), "Full liquidation must succeed for deeply distressed position");
+    assert!(
+        result.is_ok(),
+        "Full liquidation must succeed for deeply distressed position"
+    );
 }
 
 /// Test: After full liquidation, borrower's debt is zero.
@@ -708,11 +757,28 @@ fn test_full_liquidation_clears_debt() {
     let total_debt = pool.get_user_debt(&borrower, &debt_token);
     let half_debt = total_debt / 2;
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &half_debt).unwrap();
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &half_debt).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &half_debt,
+    )
+    .unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &half_debt,
+    )
+    .unwrap();
 
     let remaining_debt = pool.get_user_debt(&borrower, &debt_token);
-    assert_eq!(remaining_debt, 0, "Debt must be zero after full liquidation via two calls");
+    assert_eq!(
+        remaining_debt, 0,
+        "Debt must be zero after full liquidation via two calls"
+    );
 }
 
 /// Test: After full liquidation, position is no longer liquidatable.
@@ -732,8 +798,22 @@ fn test_full_liquidation_position_no_longer_liquidatable() {
     let total_debt = pool.get_user_debt(&borrower, &debt_token);
     let half = total_debt / 2;
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &half).unwrap();
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &half).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &half,
+    )
+    .unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &half,
+    )
+    .unwrap();
 
     assert!(
         !pool.is_liquidatable(&borrower),
@@ -759,8 +839,22 @@ fn test_full_liquidation_liquidator_receives_all_collateral() {
     let total_debt = pool.get_user_debt(&borrower, &debt_token);
     let half = total_debt / 2;
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &half).unwrap();
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &half).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &half,
+    )
+    .unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &half,
+    )
+    .unwrap();
 
     let collateral_after = pool.get_user_balance(&liquidator, &collateral_token);
     let total_received = collateral_after - collateral_before;
@@ -807,7 +901,10 @@ fn test_close_factor_blocks_over_50_percent_repay() {
         &over_limit,
     );
 
-    assert!(result.is_err(), "Repaying > 50% of debt must be blocked by close factor");
+    assert!(
+        result.is_err(),
+        "Repaying > 50% of debt must be blocked by close factor"
+    );
 }
 
 /// Test: Repaying exactly 50% (the close factor limit) is allowed.
@@ -835,7 +932,10 @@ fn test_close_factor_exactly_50_percent_succeeds() {
         &exactly_half,
     );
 
-    assert!(result.is_ok(), "Repaying exactly 50% must succeed (at close factor boundary)");
+    assert!(
+        result.is_ok(),
+        "Repaying exactly 50% must succeed (at close factor boundary)"
+    );
 }
 
 /// Test: Repaying just under 50% is allowed.
@@ -957,8 +1057,7 @@ fn test_cannot_liquidate_healthy_position() {
     let admin = Address::generate(&env);
     pool.initialize(&admin);
 
-    let (collateral_token, debt_token, borrower) =
-        setup_healthy_borrower(&env, &pool, &admin);
+    let (collateral_token, debt_token, borrower) = setup_healthy_borrower(&env, &pool, &admin);
 
     let liquidator = Address::generate(&env);
     let repay = 10 * ONE;
@@ -971,7 +1070,10 @@ fn test_cannot_liquidate_healthy_position() {
         &repay,
     );
 
-    assert!(result.is_err(), "Healthy position (HF >= 1.0) must never be liquidatable");
+    assert!(
+        result.is_err(),
+        "Healthy position (HF >= 1.0) must never be liquidatable"
+    );
 }
 
 /// Test: Self-liquidation is rejected.
@@ -1050,7 +1152,10 @@ fn test_liquidation_nonexistent_borrower_rejected() {
         &(10 * ONE),
     );
 
-    assert!(result.is_err(), "Liquidation of unknown borrower must be rejected");
+    assert!(
+        result.is_err(),
+        "Liquidation of unknown borrower must be rejected"
+    );
 }
 
 /// Test: Liquidation fails when protocol is paused.
@@ -1079,7 +1184,10 @@ fn test_liquidation_blocked_when_protocol_paused() {
         &(20 * ONE),
     );
 
-    assert!(result.is_err(), "Liquidation must be blocked when protocol is paused");
+    assert!(
+        result.is_err(),
+        "Liquidation must be blocked when protocol is paused"
+    );
 }
 
 /// Test: Liquidation with wrong debt token is rejected.
@@ -1108,7 +1216,10 @@ fn test_liquidation_wrong_debt_token_rejected() {
         &(20 * ONE),
     );
 
-    assert!(result.is_err(), "Liquidation with wrong debt token must be rejected");
+    assert!(
+        result.is_err(),
+        "Liquidation with wrong debt token must be rejected"
+    );
 }
 
 /// Test: Liquidation with wrong collateral token is rejected.
@@ -1135,7 +1246,10 @@ fn test_liquidation_wrong_collateral_token_rejected() {
         &(20 * ONE),
     );
 
-    assert!(result.is_err(), "Liquidation with wrong collateral token must be rejected");
+    assert!(
+        result.is_err(),
+        "Liquidation with wrong collateral token must be rejected"
+    );
 }
 
 /// Test: Liquidation fails when collateral is insufficient to cover seized amount + bonus.
@@ -1154,18 +1268,26 @@ fn test_liquidation_fails_insufficient_collateral_for_bonus() {
     let debt_token = Address::generate(&env);
     let borrower = Address::generate(&env);
 
-    pool.add_reserve(&admin, &collateral_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: true,
-    });
-    pool.add_reserve(&admin, &debt_token, &ReserveConfig {
-        collateral_factor: COLLATERAL_FACTOR_BPS,
-        liquidation_bonus: LIQUIDATION_BONUS_BPS,
-        is_active: true,
-        can_be_collateral: false,
-    });
+    pool.add_reserve(
+        &admin,
+        &collateral_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: true,
+        },
+    );
+    pool.add_reserve(
+        &admin,
+        &debt_token,
+        &ReserveConfig {
+            collateral_factor: COLLATERAL_FACTOR_BPS,
+            liquidation_bonus: LIQUIDATION_BONUS_BPS,
+            is_active: true,
+            can_be_collateral: false,
+        },
+    );
 
     // Only 1 unit of collateral, but 90 units of debt
     pool.deposit(&admin, &borrower, &collateral_token, &ONE);
@@ -1182,7 +1304,10 @@ fn test_liquidation_fails_insufficient_collateral_for_bonus() {
         &(ONE / 2), // even tiny repay will cause seized > available collateral
     );
 
-    assert!(result.is_err(), "Liquidation must fail when collateral < seized amount + bonus");
+    assert!(
+        result.is_err(),
+        "Liquidation must fail when collateral < seized amount + bonus"
+    );
 }
 
 // ===========================================================================
@@ -1211,7 +1336,14 @@ fn test_liquidation_total_reserve_accounting_consistent() {
 
     let total_reserve_before = pool.get_total_reserve(&collateral_token);
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &repay,
+    )
+    .unwrap();
 
     let total_reserve_after = pool.get_total_reserve(&collateral_token);
     let seized = expected_seized(repay, LIQUIDATION_BONUS_BPS);
@@ -1244,7 +1376,14 @@ fn test_liquidation_debt_token_flow_balanced() {
     let liquidator_debt_token_before = pool.get_user_balance(&liquidator, &debt_token);
     let borrower_debt_before = pool.get_user_debt(&borrower, &debt_token);
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &repay,
+    )
+    .unwrap();
 
     let liquidator_debt_token_after = pool.get_user_balance(&liquidator, &debt_token);
     let borrower_debt_after = pool.get_user_debt(&borrower, &debt_token);
@@ -1285,16 +1424,33 @@ fn test_sequential_liquidations_accounting_correct() {
         let collateral_before = pool.get_user_balance(&liquidator, &collateral_token);
 
         // Only liquidate if still undercollateralized
-        if !pool.is_liquidatable(&borrower) { break; }
+        if !pool.is_liquidatable(&borrower) {
+            break;
+        }
 
-        pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay_each)
-            .expect(&format!("Liquidation {} must succeed", i + 1));
+        pool.liquidate(
+            &liquidator,
+            &borrower,
+            &debt_token,
+            &collateral_token,
+            &repay_each,
+        )
+        .expect(&format!("Liquidation {} must succeed", i + 1));
 
         let debt_after = pool.get_user_debt(&borrower, &debt_token);
         let collateral_after = pool.get_user_balance(&liquidator, &collateral_token);
 
-        assert_eq!(debt_before - debt_after, repay_each, "Round {}: debt reduction incorrect", i + 1);
-        assert!(collateral_after > collateral_before, "Round {}: liquidator must gain collateral", i + 1);
+        assert_eq!(
+            debt_before - debt_after,
+            repay_each,
+            "Round {}: debt reduction incorrect",
+            i + 1
+        );
+        assert!(
+            collateral_after > collateral_before,
+            "Round {}: liquidator must gain collateral",
+            i + 1
+        );
     }
 }
 
@@ -1315,7 +1471,14 @@ fn test_liquidation_bonus_within_configured_limit() {
     let repay = 20 * ONE;
     let collateral_before = pool.get_user_balance(&liquidator, &collateral_token);
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &repay,
+    )
+    .unwrap();
 
     let collateral_after = pool.get_user_balance(&liquidator, &collateral_token);
     let received = collateral_after - collateral_before;
@@ -1327,7 +1490,8 @@ fn test_liquidation_bonus_within_configured_limit() {
     assert!(
         actual_bonus <= max_bonus,
         "Liquidation bonus must not exceed configured max: got {}, max {}",
-        actual_bonus, max_bonus
+        actual_bonus,
+        max_bonus
     );
 }
 
@@ -1349,7 +1513,14 @@ fn test_collateral_seized_never_exceeds_available() {
 
     let borrower_collateral_before = pool.get_user_balance(&borrower, &collateral_token);
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &repay,
+    )
+    .unwrap();
 
     let borrower_collateral_after = pool.get_user_balance(&borrower, &collateral_token);
     let seized = borrower_collateral_before - borrower_collateral_after;
@@ -1388,7 +1559,14 @@ fn test_liquidation_event_emitted() {
     let liquidator = Address::generate(&env);
     let repay = 20 * ONE;
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &repay,
+    )
+    .unwrap();
 
     let events = env.events().all();
     let liquidation_events: Vec<_> = events
@@ -1421,7 +1599,14 @@ fn test_liquidation_event_contains_correct_fields() {
     let liquidator = Address::generate(&env);
     let repay = 20 * ONE;
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &repay,
+    )
+    .unwrap();
 
     let events = env.events().all();
     let event = events
@@ -1431,9 +1616,21 @@ fn test_liquidation_event_contains_correct_fields() {
 
     // Event payload: (liquidator, borrower, debt_token, collateral_token, repay_amount, seized)
     let payload = &event.1;
-    assert_eq!(payload.get(0).unwrap(), liquidator.into_val(&env), "Event must contain liquidator");
-    assert_eq!(payload.get(1).unwrap(), borrower.into_val(&env), "Event must contain borrower");
-    assert_eq!(payload.get(4).unwrap(), repay.into_val(&env), "Event must contain repay_amount");
+    assert_eq!(
+        payload.get(0).unwrap(),
+        liquidator.into_val(&env),
+        "Event must contain liquidator"
+    );
+    assert_eq!(
+        payload.get(1).unwrap(),
+        borrower.into_val(&env),
+        "Event must contain borrower"
+    );
+    assert_eq!(
+        payload.get(4).unwrap(),
+        repay.into_val(&env),
+        "Event must contain repay_amount"
+    );
 }
 
 /// Test: No event is emitted when liquidation fails.
@@ -1448,8 +1645,7 @@ fn test_no_event_emitted_on_failed_liquidation() {
     let admin = Address::generate(&env);
     pool.initialize(&admin);
 
-    let (collateral_token, debt_token, borrower) =
-        setup_healthy_borrower(&env, &pool, &admin);
+    let (collateral_token, debt_token, borrower) = setup_healthy_borrower(&env, &pool, &admin);
 
     let liquidator = Address::generate(&env);
 
@@ -1489,11 +1685,25 @@ fn test_event_emitted_for_each_sequential_liquidation() {
     let liquidator = Address::generate(&env);
     let repay = 10 * ONE;
 
-    pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+    pool.liquidate(
+        &liquidator,
+        &borrower,
+        &debt_token,
+        &collateral_token,
+        &repay,
+    )
+    .unwrap();
 
     // Re-check still undercollateralized after first liquidation
     if pool.is_liquidatable(&borrower) {
-        pool.liquidate(&liquidator, &borrower, &debt_token, &collateral_token, &repay).unwrap();
+        pool.liquidate(
+            &liquidator,
+            &borrower,
+            &debt_token,
+            &collateral_token,
+            &repay,
+        )
+        .unwrap();
     }
 
     let events = env.events().all();
@@ -1502,7 +1712,10 @@ fn test_event_emitted_for_each_sequential_liquidation() {
         .filter(|e| e.0 == Symbol::new(&env, "LiquidationExecuted"))
         .count();
 
-    assert!(count >= 1, "At least one LiquidationExecuted event must be emitted");
+    assert!(
+        count >= 1,
+        "At least one LiquidationExecuted event must be emitted"
+    );
 }
 
 // ===========================================================================
@@ -1523,7 +1736,10 @@ fn test_liquidation_amm_swap_success() {
     let amount_out = contract.auto_swap_for_collateral(&liquidator, &Some(token_out), &15_000);
     let expected = expected_output(15_000, DEFAULT_SLIPPAGE);
 
-    assert_eq!(amount_out, expected, "AMM output must match slippage formula");
+    assert_eq!(
+        amount_out, expected,
+        "AMM output must match slippage formula"
+    );
 }
 
 /// Test: Partial AMM liquidation (above threshold, not max).
@@ -1538,8 +1754,14 @@ fn test_partial_amm_liquidation_above_threshold() {
     let amount_out = contract.auto_swap_for_collateral(&liquidator, &Some(token_out), &50_000);
     let expected = expected_output(50_000, DEFAULT_SLIPPAGE);
 
-    assert_eq!(amount_out, expected, "Partial AMM swap output must be correct");
-    assert!(amount_out > 0, "Partial liquidation must return positive amount");
+    assert_eq!(
+        amount_out, expected,
+        "Partial AMM swap output must be correct"
+    );
+    assert!(
+        amount_out > 0,
+        "Partial liquidation must return positive amount"
+    );
 }
 
 /// Test: Full AMM liquidation (large valid amount under max).
@@ -1555,7 +1777,10 @@ fn test_full_amm_liquidation_large_amount() {
     let amount_out = contract.auto_swap_for_collateral(&liquidator, &Some(token_out), &amount);
     let expected = expected_output(amount, DEFAULT_SLIPPAGE);
 
-    assert_eq!(amount_out, expected, "Full AMM liquidation output must match formula");
+    assert_eq!(
+        amount_out, expected,
+        "Full AMM liquidation output must match formula"
+    );
 }
 
 /// Test: AMM swap below threshold is rejected.
@@ -1595,7 +1820,10 @@ fn test_amm_liquidation_unsupported_pair_rejected() {
     let unknown_token = Address::generate(&env);
 
     let result = contract.try_auto_swap_for_collateral(&liquidator, &Some(unknown_token), &15_000);
-    assert!(result.is_err(), "Unsupported token pair must be rejected in AMM liquidation");
+    assert!(
+        result.is_err(),
+        "Unsupported token pair must be rejected in AMM liquidation"
+    );
 }
 
 /// Test: AMM swap history is properly isolated per liquidator.
@@ -1614,10 +1842,26 @@ fn test_amm_liquidation_history_isolated_per_user() {
     let history_a = contract.get_swap_history(&Some(liquidator_a), &10).unwrap();
     let history_b = contract.get_swap_history(&Some(liquidator_b), &10).unwrap();
 
-    assert_eq!(history_a.len(), 1, "Liquidator A must have exactly 1 record");
-    assert_eq!(history_b.len(), 1, "Liquidator B must have exactly 1 record");
-    assert_eq!(history_a.get(0).unwrap().amount_in, 15_000, "A's amount must be correct");
-    assert_eq!(history_b.get(0).unwrap().amount_in, 20_000, "B's amount must be correct");
+    assert_eq!(
+        history_a.len(),
+        1,
+        "Liquidator A must have exactly 1 record"
+    );
+    assert_eq!(
+        history_b.len(),
+        1,
+        "Liquidator B must have exactly 1 record"
+    );
+    assert_eq!(
+        history_a.get(0).unwrap().amount_in,
+        15_000,
+        "A's amount must be correct"
+    );
+    assert_eq!(
+        history_b.get(0).unwrap().amount_in,
+        20_000,
+        "B's amount must be correct"
+    );
 }
 
 // ===========================================================================
@@ -1646,7 +1890,10 @@ fn test_nonce_replay_attack_blocked() {
     };
 
     let result = contract.try_validate_amm_callback(&protocol_addr, &stale_callback);
-    assert!(result.is_err(), "Stale nonce must be rejected (replay attack protection)");
+    assert!(
+        result.is_err(),
+        "Stale nonce must be rejected (replay attack protection)"
+    );
 }
 
 /// Test: Expired callback deadline is rejected.
@@ -1668,7 +1915,10 @@ fn test_expired_callback_deadline_rejected() {
     };
 
     let result = contract.try_validate_amm_callback(&protocol_addr, &expired_callback);
-    assert!(result.is_err(), "Expired deadline callback must be rejected");
+    assert!(
+        result.is_err(),
+        "Expired deadline callback must be rejected"
+    );
 }
 
 /// Test: Unregistered protocol cannot trigger a callback.
@@ -1692,7 +1942,10 @@ fn test_unregistered_protocol_callback_rejected() {
     };
 
     let result = contract.try_validate_amm_callback(&fake_protocol, &callback);
-    assert!(result.is_err(), "Unregistered (spoofed) protocol callback must be rejected");
+    assert!(
+        result.is_err(),
+        "Unregistered (spoofed) protocol callback must be rejected"
+    );
 }
 
 /// Test: Non-admin cannot change liquidation settings.
@@ -1708,7 +1961,7 @@ fn test_non_admin_cannot_change_liquidation_settings() {
     let attacker = Address::generate(&env);
 
     let malicious_settings = AmmSettings {
-        default_slippage: 9_999,         // Near-total slippage — drains value
+        default_slippage: 9_999, // Near-total slippage — drains value
         max_slippage: 9_999,
         swap_enabled: true,
         liquidity_enabled: true,
@@ -1716,7 +1969,10 @@ fn test_non_admin_cannot_change_liquidation_settings() {
     };
 
     let result = contract.try_update_amm_settings(&attacker, &malicious_settings);
-    assert!(result.is_err(), "Non-admin must not be able to modify liquidation settings");
+    assert!(
+        result.is_err(),
+        "Non-admin must not be able to modify liquidation settings"
+    );
 }
 
 /// Test: Disabled protocol cannot be used for liquidation routing.
@@ -1738,7 +1994,10 @@ fn test_disabled_protocol_not_used_for_liquidation() {
 
     let liquidator = Address::generate(&env);
     let result = contract.try_auto_swap_for_collateral(&liquidator, &Some(token_out), &15_000);
-    assert!(result.is_err(), "Disabled protocol must not route liquidation swaps");
+    assert!(
+        result.is_err(),
+        "Disabled protocol must not route liquidation swaps"
+    );
 }
 
 /// Test: Slippage tolerance exceeding max is rejected.
@@ -1752,7 +2011,14 @@ fn test_slippage_exceeding_max_rejected() {
     let (contract, _admin, protocol_addr, token_out) = setup_amm_env(&env);
     let user = Address::generate(&env);
 
-    let params = make_swap_params(&env, &protocol_addr, &token_out, 20_000, 1, MAX_SLIPPAGE + 1);
+    let params = make_swap_params(
+        &env,
+        &protocol_addr,
+        &token_out,
+        20_000,
+        1,
+        MAX_SLIPPAGE + 1,
+    );
     let result = contract.try_execute_swap(&user, &params);
 
     assert!(result.is_err(), "Slippage above max must be rejected");
@@ -1781,7 +2047,10 @@ fn test_expired_deadline_blocks_amm_swap() {
     };
 
     let result = contract.try_execute_swap(&user, &params);
-    assert!(result.is_err(), "Expired deadline must block liquidation AMM swap");
+    assert!(
+        result.is_err(),
+        "Expired deadline must block liquidation AMM swap"
+    );
 }
 
 /// Test: AMM swap amount exceeding protocol max is rejected.
@@ -1803,7 +2072,10 @@ fn test_amm_swap_exceeds_max_amount_rejected() {
     );
 
     let result = contract.try_execute_swap(&user, &params);
-    assert!(result.is_err(), "Amount exceeding protocol max must be rejected");
+    assert!(
+        result.is_err(),
+        "Amount exceeding protocol max must be rejected"
+    );
 }
 
 /// Test: AMM liquidation output is always positive (never negative or zero).
@@ -1816,7 +2088,10 @@ fn test_amm_liquidation_output_always_positive() {
     let liquidator = Address::generate(&env);
 
     let amount_out = contract.auto_swap_for_collateral(&liquidator, &Some(token_out), &15_000);
-    assert!(amount_out > 0, "AMM liquidation output must always be positive");
+    assert!(
+        amount_out > 0,
+        "AMM liquidation output must always be positive"
+    );
 }
 
 /// Test: Liquidation settings update immediately affects subsequent swaps.
@@ -1830,7 +2105,9 @@ fn test_liquidation_settings_update_immediate_effect() {
 
     // 8_000 is below current threshold of 10_000 — should fail
     assert!(
-        contract.try_auto_swap_for_collateral(&liquidator, &Some(token_out.clone()), &8_000).is_err(),
+        contract
+            .try_auto_swap_for_collateral(&liquidator, &Some(token_out.clone()), &8_000)
+            .is_err(),
         "8_000 must fail before threshold update"
     );
 
@@ -1841,7 +2118,9 @@ fn test_liquidation_settings_update_immediate_effect() {
 
     // 8_000 is now above threshold — should succeed
     assert!(
-        contract.try_auto_swap_for_collateral(&liquidator, &Some(token_out), &8_000).is_ok(),
+        contract
+            .try_auto_swap_for_collateral(&liquidator, &Some(token_out), &8_000)
+            .is_ok(),
         "8_000 must succeed after threshold lowered to 5_000"
     );
 }

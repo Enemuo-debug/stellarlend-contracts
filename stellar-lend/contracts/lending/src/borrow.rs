@@ -297,9 +297,13 @@ pub fn get_user_collateral(env: &Env, user: &Address) -> BorrowCollateral {
 }
 
 pub fn set_admin(env: &Env, admin: &Address) {
-    env.storage().persistent().set(&BorrowDataKey::ProtocolAdmin, admin);
+    env.storage()
+        .persistent()
+        .set(&BorrowDataKey::ProtocolAdmin, admin);
 }
 
 pub fn get_admin(env: &Env) -> Option<Address> {
-    env.storage().persistent().get(&BorrowDataKey::ProtocolAdmin)
+    env.storage()
+        .persistent()
+        .get(&BorrowDataKey::ProtocolAdmin)
 }

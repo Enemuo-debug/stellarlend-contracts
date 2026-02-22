@@ -130,9 +130,10 @@ fn get_deposit_position(env: &Env, user: &Address, asset: &Address) -> DepositCo
 }
 
 fn save_deposit_position(env: &Env, user: &Address, position: &DepositCollateral) {
-    env.storage()
-        .persistent()
-        .set(&DepositDataKey::DepositUserCollateral(user.clone()), position);
+    env.storage().persistent().set(
+        &DepositDataKey::DepositUserCollateral(user.clone()),
+        position,
+    );
 }
 
 fn get_total_deposits(env: &Env) -> i128 {

@@ -11,6 +11,7 @@ pub mod interest_accrual_test;
 pub mod interest_rate_test;
 pub mod liquidate_test;
 pub mod oracle_test;
+pub mod repay_test;
 pub mod pause_test;
 pub mod recovery_multisig_test;
 pub mod risk_params_test;

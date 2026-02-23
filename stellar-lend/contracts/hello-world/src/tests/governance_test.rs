@@ -4,11 +4,11 @@
 
 #![cfg(test)]
 
-use soroban_sdk::{Address, Env, String, Symbol, Vec};
+use soroban_sdk::{Address, Env, String};
 
 use soroban_sdk::testutils::{Address as _, Ledger as _};
 
-use soroban_sdk::token::{StellarAssetClient, TokenClient};
+use soroban_sdk::token::StellarAssetClient;
 
 use crate::{
     types::{ProposalStatus, ProposalType, VoteType},

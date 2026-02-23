@@ -1,7 +1,5 @@
 use soroban_sdk::{contracttype, Address, Vec};
 
-use crate::types::*;
-
 #[derive(Clone)]
 #[contracttype]
 pub enum GovernanceDataKey {

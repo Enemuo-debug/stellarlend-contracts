@@ -1,28 +1,6 @@
-//! # Governance Module
-//!
-//! Provides on-chain governance, multisig approvals, and social recovery for the lending protocol.
-//!
-//! ## Proposal Lifecycle
-//! 1. A user with sufficient voting power **creates** a proposal
-//! 2. Token holders **vote** during voting period
-//! 3. After voting ends, anyone can **queue** successful proposals
-//! 4. After timelock expires, anyone can **execute** the proposal
-//!
-//! ## Multisig Integration
-//! - Admins can approve proposals (additional to token voting)
-//! - Proposals need both token vote success AND sufficient admin approvals
-//!
-//! ## Social Recovery
-//! - Guardians can recover admin access if keys are lost
+#![allow(unused_variables)]
 
-use soroban_sdk::token::TokenInterface;
-use soroban_sdk::{
-    token::TokenClient,
-    Address,
-    Env,
-    String,
-    Vec, //Symbol,  Map,
-};
+use soroban_sdk::{token::TokenClient, Address, Env, String, Vec};
 
 use crate::errors::GovernanceError;
 use crate::storage::{GovernanceDataKey, GuardianConfig};
@@ -33,7 +11,7 @@ use crate::events::{
     ProposalQueuedEvent, RecoveryApprovedEvent, RecoveryExecutedEvent, RecoveryStartedEvent,
     VoteCastEvent,
 };
-#[allow(unused_variables)]
+
 use crate::types::{
     GovernanceConfig, MultisigConfig, Proposal, ProposalOutcome, ProposalStatus, ProposalType,
     RecoveryRequest, VoteInfo, VoteType, BASIS_POINTS_SCALE, DEFAULT_EXECUTION_DELAY,
@@ -99,7 +77,6 @@ pub fn initialize(
         .instance()
         .set(&GovernanceDataKey::MultisigConfig, &multisig_config);
 
-    // FIX: Initialize GuardianConfig so query functions don't fail in tests
     let guardian_config = GuardianConfig {
         guardians: Vec::new(env),
         threshold: 1,
@@ -119,6 +96,7 @@ pub fn initialize(
 
     Ok(())
 }
+
 // ========================================================================
 // Proposal Creation
 // ========================================================================
@@ -138,7 +116,6 @@ pub fn create_proposal(
         .get(&GovernanceDataKey::Config)
         .ok_or(GovernanceError::NotInitialized)?;
 
-    // Check proposer has sufficient voting power
     if config.proposal_threshold > 0 {
         let token_client = TokenClient::new(env, &config.vote_token);
         let balance = token_client.balance(&proposer);
@@ -173,30 +150,26 @@ pub fn create_proposal(
         created_at: now,
     };
 
-    // Store proposal
     env.storage()
         .persistent()
         .set(&GovernanceDataKey::Proposal(next_id), &proposal);
 
-    // Track user's proposals for querying
     let user_key = GovernanceDataKey::UserProposals(proposer.clone(), next_id);
     env.storage().persistent().set(&user_key, &true);
 
-    // Initialize approvals map
     let approvals_key = GovernanceDataKey::ProposalApprovals(next_id);
     let approvals: Vec<Address> = Vec::new(env);
     env.storage().persistent().set(&approvals_key, &approvals);
 
-    // Update next proposal ID
     env.storage()
         .instance()
         .set(&GovernanceDataKey::NextProposalId, &(next_id + 1));
 
     ProposalCreatedEvent {
         proposal_id: next_id,
-        proposer: proposer.clone(),
-        proposal_type: proposal.proposal_type.clone(),
-        description: description,
+        proposer,
+        proposal_type: proposal.proposal_type,
+        description,
         start_time: proposal.start_time,
         end_time: proposal.end_time,
         created_at: now,
@@ -232,12 +205,11 @@ pub fn vote(
 
     let now = env.ledger().timestamp();
 
-    // FIX: Update status BEFORE checking ProposalNotActive
     if proposal.status == ProposalStatus::Pending && now >= proposal.start_time {
         proposal.status = ProposalStatus::Active;
     }
 
-    if !matches!(proposal.status, ProposalStatus::Active) {
+    if proposal.status != ProposalStatus::Active {
         return Err(GovernanceError::ProposalNotActive);
     }
 
@@ -311,23 +283,20 @@ pub fn queue_proposal(
 
     let now = env.ledger().timestamp();
 
-    // Can only queue after voting period
     if now <= proposal.end_time {
         return Err(GovernanceError::VotingNotEnded);
     }
 
-    // Check if already processed
     match proposal.status {
-        ProposalStatus::Executed | ProposalStatus::Cancelled | ProposalStatus::Expired => {
-            return Err(GovernanceError::InvalidProposalStatus);
-        }
-        ProposalStatus::Queued => {
+        ProposalStatus::Executed
+        | ProposalStatus::Cancelled
+        | ProposalStatus::Expired
+        | ProposalStatus::Queued => {
             return Err(GovernanceError::InvalidProposalStatus);
         }
         _ => {}
     }
 
-    // Check expiration (7 days after voting ends)
     if now > proposal.end_time + DEFAULT_TIMELOCK_DURATION {
         proposal.status = ProposalStatus::Expired;
         env.storage()
@@ -336,12 +305,10 @@ pub fn queue_proposal(
         return Err(GovernanceError::ProposalExpired);
     }
 
-    // Calculate quorum
     let total_votes = proposal.for_votes + proposal.against_votes + proposal.abstain_votes;
     let quorum_required = (total_votes * config.quorum_bps as i128) / BASIS_POINTS_SCALE;
     let quorum_reached = total_votes >= quorum_required;
 
-    // Check threshold
     let threshold_votes =
         (proposal.total_voting_power * proposal.voting_threshold) / BASIS_POINTS_SCALE;
     let threshold_met = proposal.for_votes >= threshold_votes;
@@ -420,8 +387,7 @@ pub fn execute_proposal(
 
     let now = env.ledger().timestamp();
 
-    // Validate can execute
-    if !matches!(proposal.status, ProposalStatus::Queued) {
+    if proposal.status != ProposalStatus::Queued {
         return Err(GovernanceError::NotQueued);
     }
 
@@ -433,7 +399,6 @@ pub fn execute_proposal(
         return Err(GovernanceError::ExecutionTooEarly);
     }
 
-    // Check timelock expiration
     if now > execution_time + config.timelock_duration {
         proposal.status = ProposalStatus::Expired;
         env.storage()
@@ -442,10 +407,8 @@ pub fn execute_proposal(
         return Err(GovernanceError::ProposalExpired);
     }
 
-    // Execute the proposal based on type
     execute_proposal_type(env, &proposal.proposal_type)?;
 
-    // Update proposal status
     proposal.status = ProposalStatus::Executed;
     env.storage()
         .persistent()
@@ -461,30 +424,13 @@ pub fn execute_proposal(
     Ok(())
 }
 
-fn execute_proposal_type(env: &Env, proposal_type: &ProposalType) -> Result<(), GovernanceError> {
+fn execute_proposal_type(_env: &Env, proposal_type: &ProposalType) -> Result<(), GovernanceError> {
     match proposal_type {
-        ProposalType::MinCollateralRatio(new_ratio) => {
-            // Call into main contract to update min collateral ratio
-            // This would be implemented based on your main contract interface
-            Ok(())
-        }
-        ProposalType::RiskParams(min_cr, liq_threshold, close_factor, liq_incentive) => {
-            // Update risk parameters
-            Ok(())
-        }
-        ProposalType::PauseSwitch(operation, paused) => {
-            // Pause/unpause operation
-            Ok(())
-        }
-        ProposalType::EmergencyPause(paused) => {
-            // Emergency pause all
-            Ok(())
-        }
-        ProposalType::GenericAction(action) => {
-            // Execute generic action
-            // This would need proper cross-contract call implementation
-            Ok(())
-        }
+        ProposalType::MinCollateralRatio(_)
+        | ProposalType::RiskParams(_, _, _, _)
+        | ProposalType::PauseSwitch(_, _)
+        | ProposalType::EmergencyPause(_)
+        | ProposalType::GenericAction(_) => Ok(()),
     }
 }
 
@@ -511,12 +457,10 @@ pub fn cancel_proposal(
         .get(&GovernanceDataKey::Proposal(proposal_id))
         .ok_or(GovernanceError::ProposalNotFound)?;
 
-    // Only proposer or admin can cancel
     if caller != proposal.proposer && caller != admin {
         return Err(GovernanceError::Unauthorized);
     }
 
-    // Can't cancel if already executed or queued
     match proposal.status {
         ProposalStatus::Executed | ProposalStatus::Queued => {
             return Err(GovernanceError::InvalidProposalStatus);
@@ -529,12 +473,10 @@ pub fn cancel_proposal(
         .persistent()
         .set(&GovernanceDataKey::Proposal(proposal_id), &proposal);
 
-    let now = env.ledger().timestamp();
-
     ProposalCancelledEvent {
         proposal_id,
         caller,
-        timestamp: now,
+        timestamp: env.ledger().timestamp(),
     }
     .publish(env);
 
@@ -609,11 +551,7 @@ pub fn set_multisig_config(
         return Err(GovernanceError::Unauthorized);
     }
 
-    if admins.is_empty() {
-        return Err(GovernanceError::InvalidMultisigConfig);
-    }
-
-    if threshold == 0 || threshold > admins.len() {
+    if admins.is_empty() || threshold == 0 || threshold > admins.len() {
         return Err(GovernanceError::InvalidMultisigConfig);
     }
 
@@ -646,12 +584,12 @@ pub fn add_guardian(env: &Env, caller: Address, guardian: Address) -> Result<(),
         .storage()
         .instance()
         .get(&GovernanceDataKey::GuardianConfig)
-        .unwrap_or(GuardianConfig {
+        .unwrap_or_else(|| GuardianConfig {
             guardians: Vec::new(env),
             threshold: 1,
         });
 
-    if guardian_config.guardians.contains(guardian.clone()) {
+    if guardian_config.guardians.contains(&guardian) {
         return Err(GovernanceError::GuardianAlreadyExists);
     }
 
@@ -660,12 +598,10 @@ pub fn add_guardian(env: &Env, caller: Address, guardian: Address) -> Result<(),
         .instance()
         .set(&GovernanceDataKey::GuardianConfig, &guardian_config);
 
-    let now = env.ledger().timestamp();
-
     GuardianAddedEvent {
         guardian,
         added_by: caller,
-        timestamp: now,
+        timestamp: env.ledger().timestamp(),
     }
     .publish(env);
 
@@ -712,7 +648,6 @@ pub fn remove_guardian(
 
     guardian_config.guardians = new_guardians;
 
-    // Adjust threshold if needed
     if guardian_config.threshold > guardian_config.guardians.len() {
         guardian_config.threshold = guardian_config.guardians.len();
     }
@@ -721,12 +656,10 @@ pub fn remove_guardian(
         .instance()
         .set(&GovernanceDataKey::GuardianConfig, &guardian_config);
 
-    let now = env.ledger().timestamp();
-
     GuardianRemovedEvent {
         guardian,
         removed_by: caller,
-        timestamp: now,
+        timestamp: env.ledger().timestamp(),
     }
     .publish(env);
 
@@ -782,7 +715,7 @@ pub fn start_recovery(
         .get(&GovernanceDataKey::GuardianConfig)
         .ok_or(GovernanceError::GuardianNotFound)?;
 
-    if !guardian_config.guardians.contains(initiator.clone()) {
+    if !guardian_config.guardians.contains(&initiator) {
         return Err(GovernanceError::Unauthorized);
     }
 
@@ -802,7 +735,6 @@ pub fn start_recovery(
 
     env.storage().persistent().set(&recovery_key, &request);
 
-    // Add initiator as first approver
     let approvals_key = GovernanceDataKey::RecoveryApprovals;
     let mut approvals = Vec::new(env);
     approvals.push_back(initiator.clone());
@@ -829,38 +761,34 @@ pub fn approve_recovery(env: &Env, approver: Address) -> Result<(), GovernanceEr
         .get(&GovernanceDataKey::GuardianConfig)
         .ok_or(GovernanceError::GuardianNotFound)?;
 
-    if !guardian_config.guardians.contains(approver.clone()) {
+    if !guardian_config.guardians.contains(&approver) {
         return Err(GovernanceError::Unauthorized);
     }
 
     let recovery_key = GovernanceDataKey::RecoveryRequest;
-    let _request: RecoveryRequest = env
-        .storage()
-        .persistent()
-        .get(&recovery_key)
-        .ok_or(GovernanceError::NoRecoveryInProgress)?;
+    if !env.storage().persistent().has(&recovery_key) {
+        return Err(GovernanceError::NoRecoveryInProgress);
+    }
 
     let approvals_key = GovernanceDataKey::RecoveryApprovals;
     let mut approvals: Vec<Address> = env
         .storage()
         .persistent()
         .get(&approvals_key)
-        .unwrap_or(Vec::new(env));
+        .unwrap_or_else(|| Vec::new(env));
 
-    if approvals.contains(approver.clone()) {
+    if approvals.contains(&approver) {
         return Err(GovernanceError::AlreadyVoted);
     }
 
     approvals.push_back(approver.clone());
     env.storage().persistent().set(&approvals_key, &approvals);
 
-    let now = env.ledger().timestamp();
-
     RecoveryApprovedEvent {
         approver,
         current_approvals: approvals.len(),
         threshold: guardian_config.threshold,
-        timestamp: now,
+        timestamp: env.ledger().timestamp(),
     }
     .publish(env);
 
@@ -894,13 +822,12 @@ pub fn execute_recovery(env: &Env, executor: Address) -> Result<(), GovernanceEr
         .storage()
         .persistent()
         .get(&approvals_key)
-        .unwrap_or(Vec::new(env));
+        .unwrap_or_else(|| Vec::new(env));
 
     if approvals.len() < guardian_config.threshold {
         return Err(GovernanceError::InsufficientApprovals);
     }
 
-    // Update admin in multisig config
     let mut multisig_config: MultisigConfig = env
         .storage()
         .instance()
@@ -920,7 +847,6 @@ pub fn execute_recovery(env: &Env, executor: Address) -> Result<(), GovernanceEr
         .instance()
         .set(&GovernanceDataKey::MultisigConfig, &multisig_config);
 
-    // Clear recovery state
     env.storage().persistent().remove(&recovery_key);
     env.storage().persistent().remove(&approvals_key);
 
@@ -1024,8 +950,8 @@ pub fn can_vote(env: &Env, voter: Address, proposal_id: u64) -> bool {
 
     let now = env.ledger().timestamp();
 
-    let is_active = matches!(proposal.status, ProposalStatus::Active)
-        || (matches!(proposal.status, ProposalStatus::Pending) && now >= proposal.start_time);
+    let is_active = proposal.status == ProposalStatus::Active
+        || (proposal.status == ProposalStatus::Pending && now >= proposal.start_time);
 
     if !is_active || now > proposal.end_time {
         return false;

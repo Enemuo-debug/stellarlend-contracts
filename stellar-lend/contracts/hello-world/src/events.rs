@@ -1,28 +1,13 @@
-//! # StellarLend Protocol – Event Logging
-//!
-//! Defines a **consistent, structured event schema** for every state-changing
-//! action in the StellarLend protocol, including governance operations.
-//!
-//! ## Design principles
-//! - Each event is its own `#[contractevent]` struct. The macro auto-derives
-//!   the lowercase snake_case struct name as the leading topic, generates XDR
-//!   spec entries, and exposes a `.publish(&env)` method.
-//! - Fields annotated with `#[topic]` become additional Soroban event topics.
-//!   All other fields are packed into the event data payload (default format: map).
-//! - `emit_*` helper functions wrap struct construction and call `.publish`,
-//!   providing a single call-site per action.
-//! - **No sensitive data**: all fields are publicly observable state only
-//!   (`Address`, `Symbol`, `i128`, `u32`, `u64`, `bool`, `Option<Address>`).
-#[allow(unused_variables)]
+#![allow(unused_variables)]
+
 use soroban_sdk::{contractevent, Address, Env, String, Symbol, Vec};
 
-use crate::types::{AssetStatus, ProposalStatus, ProposalType, VoteType};
+use crate::types::{AssetStatus, ProposalType, VoteType};
 
 // ============================================================================
 // Core Lending Events (Existing)
 // ============================================================================
 
-/// Emitted when a user deposits collateral into the protocol.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct DepositEvent {
@@ -32,7 +17,6 @@ pub struct DepositEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a user withdraws collateral from the protocol.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct WithdrawalEvent {
@@ -42,7 +26,6 @@ pub struct WithdrawalEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a user borrows assets from the protocol.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct BorrowEvent {
@@ -52,7 +35,6 @@ pub struct BorrowEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a user repays debt to the protocol.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct RepayEvent {
@@ -62,7 +44,6 @@ pub struct RepayEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a liquidator liquidates an undercollateralised position.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct LiquidationEvent {
@@ -76,7 +57,6 @@ pub struct LiquidationEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a flash loan is initiated.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct FlashLoanInitiatedEvent {
@@ -88,7 +68,6 @@ pub struct FlashLoanInitiatedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a flash loan is successfully repaid.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct FlashLoanRepaidEvent {
@@ -99,7 +78,6 @@ pub struct FlashLoanRepaidEvent {
     pub timestamp: u64,
 }
 
-/// Emitted for generic admin-initiated state-changing actions.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct AdminActionEvent {
@@ -108,7 +86,6 @@ pub struct AdminActionEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when an oracle price is updated.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct PriceUpdatedEvent {
@@ -120,7 +97,6 @@ pub struct PriceUpdatedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when risk parameters are updated by an admin.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct RiskParamsUpdatedEvent {
@@ -128,7 +104,6 @@ pub struct RiskParamsUpdatedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when the pause state of any protocol operation changes.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct PauseStateChangedEvent {
@@ -138,7 +113,6 @@ pub struct PauseStateChangedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a user's position is updated.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct PositionUpdatedEvent {
@@ -147,7 +121,6 @@ pub struct PositionUpdatedEvent {
     pub debt: i128,
 }
 
-/// Emitted when analytics data is updated.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct AnalyticsUpdatedEvent {
@@ -157,7 +130,6 @@ pub struct AnalyticsUpdatedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when user activity is tracked.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct UserActivityTrackedEvent {
@@ -171,7 +143,7 @@ pub struct UserActivityTrackedEvent {
 // Asset-Specific Events (Carbon Asset Style)
 // ============================================================================
 
-/// Emitted when an asset is minted.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct MintEvent {
@@ -182,7 +154,7 @@ pub struct MintEvent {
     pub methodology_id: u32,
 }
 
-/// Emitted when an asset is transferred.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct TransferEvent {
@@ -191,7 +163,7 @@ pub struct TransferEvent {
     pub to: Address,
 }
 
-/// Emitted when asset status changes.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct StatusChangeEvent {
@@ -201,7 +173,7 @@ pub struct StatusChangeEvent {
     pub changed_by: Address,
 }
 
-/// Emitted when quality score is updated.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct QualityScoreUpdatedEvent {
@@ -211,7 +183,7 @@ pub struct QualityScoreUpdatedEvent {
     pub updated_by: Address,
 }
 
-/// SEP-41 style approve event.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct ApproveEvent {
@@ -221,7 +193,7 @@ pub struct ApproveEvent {
     pub live_until_ledger: u32,
 }
 
-/// SEP-41 style transfer event.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct Sep41TransferEvent {
@@ -230,7 +202,7 @@ pub struct Sep41TransferEvent {
     pub amount: i128,
 }
 
-/// SEP-41 style burn event.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct Sep41BurnEvent {
@@ -242,7 +214,6 @@ pub struct Sep41BurnEvent {
 // Governance Events
 // ============================================================================
 
-/// Emitted when governance system is initialized.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct GovernanceInitializedEvent {
@@ -253,7 +224,6 @@ pub struct GovernanceInitializedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a new proposal is created.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct ProposalCreatedEvent {
@@ -266,7 +236,6 @@ pub struct ProposalCreatedEvent {
     pub created_at: u64,
 }
 
-/// Emitted when a vote is cast on a proposal.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct VoteCastEvent {
@@ -277,7 +246,6 @@ pub struct VoteCastEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a proposal is queued for execution.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct ProposalQueuedEvent {
@@ -289,7 +257,6 @@ pub struct ProposalQueuedEvent {
     pub threshold_met: bool,
 }
 
-/// Emitted when a proposal is executed.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct ProposalExecutedEvent {
@@ -298,7 +265,6 @@ pub struct ProposalExecutedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a proposal fails.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct ProposalFailedEvent {
@@ -309,7 +275,6 @@ pub struct ProposalFailedEvent {
     pub threshold_met: bool,
 }
 
-/// Emitted when a proposal is cancelled.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct ProposalCancelledEvent {
@@ -318,7 +283,6 @@ pub struct ProposalCancelledEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a multisig admin approves a proposal.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct ProposalApprovedEvent {
@@ -327,7 +291,7 @@ pub struct ProposalApprovedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when governance configuration is updated.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct GovernanceConfigUpdatedEvent {
@@ -343,7 +307,7 @@ pub struct GovernanceConfigUpdatedEvent {
 // Multisig Events
 // ============================================================================
 
-/// Emitted when multisig configuration is updated.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct MultisigConfigUpdatedEvent {
@@ -357,7 +321,6 @@ pub struct MultisigConfigUpdatedEvent {
 // Guardian & Recovery Events
 // ============================================================================
 
-/// Emitted when a guardian is added.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct GuardianAddedEvent {
@@ -366,7 +329,6 @@ pub struct GuardianAddedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a guardian is removed.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct GuardianRemovedEvent {
@@ -375,7 +337,7 @@ pub struct GuardianRemovedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when guardian threshold is updated.
+#[allow(dead_code)]
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct GuardianThresholdUpdatedEvent {
@@ -385,7 +347,6 @@ pub struct GuardianThresholdUpdatedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a recovery process is started.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct RecoveryStartedEvent {
@@ -396,7 +357,6 @@ pub struct RecoveryStartedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when a recovery request is approved by a guardian.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct RecoveryApprovedEvent {
@@ -406,7 +366,6 @@ pub struct RecoveryApprovedEvent {
     pub timestamp: u64,
 }
 
-/// Emitted when recovery is executed and admin is changed.
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct RecoveryExecutedEvent {
@@ -480,30 +439,37 @@ pub fn emit_user_activity_tracked(e: &Env, event: UserActivityTrackedEvent) {
 // Asset-Specific Emitter Helpers
 // ============================================================================
 
+#[allow(dead_code)]
 pub fn emit_mint(e: &Env, event: MintEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_transfer(e: &Env, event: TransferEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_status_change(e: &Env, event: StatusChangeEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_quality_score_updated(e: &Env, event: QualityScoreUpdatedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_approve(e: &Env, event: ApproveEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_sep41_transfer(e: &Env, event: Sep41TransferEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_sep41_burn(e: &Env, event: Sep41BurnEvent) {
     event.publish(e);
 }
@@ -512,38 +478,47 @@ pub fn emit_sep41_burn(e: &Env, event: Sep41BurnEvent) {
 // Governance Emitter Helpers
 // ============================================================================
 
+#[allow(dead_code)]
 pub fn emit_governance_initialized(e: &Env, event: GovernanceInitializedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_proposal_created(e: &Env, event: ProposalCreatedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_vote_cast(e: &Env, event: VoteCastEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_proposal_queued(e: &Env, event: ProposalQueuedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_proposal_executed(e: &Env, event: ProposalExecutedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_proposal_failed(e: &Env, event: ProposalFailedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_proposal_cancelled(e: &Env, event: ProposalCancelledEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_proposal_approved(e: &Env, event: ProposalApprovedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_governance_config_updated(e: &Env, event: GovernanceConfigUpdatedEvent) {
     event.publish(e);
 }
@@ -552,6 +527,7 @@ pub fn emit_governance_config_updated(e: &Env, event: GovernanceConfigUpdatedEve
 // Multisig Emitter Helpers
 // ============================================================================
 
+#[allow(dead_code)]
 pub fn emit_multisig_config_updated(e: &Env, event: MultisigConfigUpdatedEvent) {
     event.publish(e);
 }
@@ -560,26 +536,32 @@ pub fn emit_multisig_config_updated(e: &Env, event: MultisigConfigUpdatedEvent) 
 // Guardian & Recovery Emitter Helpers
 // ============================================================================
 
+#[allow(dead_code)]
 pub fn emit_guardian_added(e: &Env, event: GuardianAddedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_guardian_removed(e: &Env, event: GuardianRemovedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_guardian_threshold_updated(e: &Env, event: GuardianThresholdUpdatedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_recovery_started(e: &Env, event: RecoveryStartedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_recovery_approved(e: &Env, event: RecoveryApprovedEvent) {
     event.publish(e);
 }
 
+#[allow(dead_code)]
 pub fn emit_recovery_executed(e: &Env, event: RecoveryExecutedEvent) {
     event.publish(e);
 }

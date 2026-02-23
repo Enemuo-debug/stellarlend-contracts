@@ -16,6 +16,7 @@
 
 #![allow(clippy::too_many_arguments)]
 #![allow(deprecated)]
+#![allow(unused_variables)]
 #![no_std]
 
 use soroban_sdk::{contract, contractimpl, Address, Env, Map, String, Symbol, Vec};
@@ -34,7 +35,6 @@ use borrow::borrow_asset;
 use deposit::deposit_collateral;
 use repay::repay_debt;
 
-#[allow(unused_variables)]
 use risk_management::{
     can_be_liquidated, get_close_factor, get_liquidation_incentive,
     get_liquidation_incentive_amount, get_liquidation_threshold, get_max_liquidatable_amount,
@@ -46,14 +46,12 @@ use withdraw::withdraw_collateral;
 
 mod analytics;
 
-#[allow(unused_variables)]
 use analytics::{
     generate_protocol_report, generate_user_report, get_recent_activity, get_user_activity_feed,
     AnalyticsError, ProtocolReport, UserReport,
 };
 
 mod cross_asset;
-#[allow(unused_imports)]
 use cross_asset::{
     cross_asset_borrow, cross_asset_deposit, cross_asset_repay, cross_asset_withdraw,
     get_asset_config_by_address, get_asset_list, get_user_asset_position,

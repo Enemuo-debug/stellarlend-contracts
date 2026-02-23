@@ -7,8 +7,7 @@ mod pause;
 
 use borrow::{
     borrow, get_admin, get_user_collateral, get_user_debt, initialize_borrow_settings, set_admin,
-    set_liquidation_threshold_bps, set_oracle,
-    BorrowCollateral, BorrowError, DebtPosition,
+    set_liquidation_threshold_bps, set_oracle, BorrowCollateral, BorrowError, DebtPosition,
 };
 use pause::{is_paused, set_pause, PauseType};
 
@@ -22,7 +21,10 @@ mod flash_loan;
 use flash_loan::{flash_loan, set_flash_loan_fee_bps, FlashLoanError};
 
 mod views;
-use views::{get_collateral_balance, get_collateral_value, get_debt_balance, get_debt_value, get_health_factor, get_user_position, UserPositionSummary};
+use views::{
+    get_collateral_balance, get_collateral_value, get_debt_balance, get_debt_value,
+    get_health_factor, get_user_position, UserPositionSummary,
+};
 
 mod withdraw;
 use withdraw::{initialize_withdraw_settings, set_withdraw_paused, WithdrawError};

@@ -20,7 +20,15 @@ impl MockOracle {
     }
 }
 
-fn setup(env: &Env) -> (LendingContractClient<'_>, Address, Address, Address, Address) {
+fn setup(
+    env: &Env,
+) -> (
+    LendingContractClient<'_>,
+    Address,
+    Address,
+    Address,
+    Address,
+) {
     let contract_id = env.register(LendingContract, ());
     let client = LendingContractClient::new(env, &contract_id);
     let admin = Address::generate(env);

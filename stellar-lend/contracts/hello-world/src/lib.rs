@@ -50,29 +50,30 @@ fn require_admin(env: &Env, caller: &Address) -> Result<(), RiskManagementError>
 //! - **Oracle integration**: price feeds with staleness checks and fallbacks
 //! - **Flash loans**: uncollateralized single-transaction loans
 //! - **Analytics**: protocol and user reporting
-//!
-//! ## Invariants
-//! - All positions must maintain the minimum collateral ratio or face liquidation.
-//! - Interest accrues continuously based on protocol utilization.
-//! - Only the admin can modify risk parameters, oracle config, and pause switches.
-//! - Emergency pause halts all operations immediately.
+//! - **Governance**: on-chain proposal voting and execution
 
 #![allow(clippy::too_many_arguments)]
 #![allow(deprecated)]
+#![allow(unused_variables)]
 #![no_std]
-use soroban_sdk::{contract, contractimpl, Address, Env, Map, String, Symbol};
+
+use soroban_sdk::{contract, contractimpl, Address, Env, Map, String, Symbol, Vec};
 
 mod admin;
 mod borrow;
 mod deposit;
+mod errors;
 mod events;
 mod repay;
 mod risk_management;
+mod storage;
+mod types;
 mod withdraw;
 
 use borrow::borrow_asset;
 use deposit::deposit_collateral;
 use repay::repay_debt;
+
 use risk_management::{
     can_be_liquidated, get_close_factor, get_liquidation_incentive,
     get_liquidation_incentive_amount, get_liquidation_threshold, get_max_liquidatable_amount,
@@ -83,12 +84,13 @@ use risk_management::{
 use withdraw::withdraw_collateral;
 
 mod analytics;
+
 use analytics::{
     generate_protocol_report, generate_user_report, get_recent_activity, get_user_activity_feed,
     AnalyticsError, ProtocolReport, UserReport,
 };
+
 mod cross_asset;
-#[allow(unused_imports)]
 use cross_asset::{
     cross_asset_borrow, cross_asset_deposit, cross_asset_repay, cross_asset_withdraw,
     get_asset_config_by_address, get_asset_list, get_user_asset_position,
@@ -128,16 +130,16 @@ use interest_rate::{
     InterestRateError,
 };
 
-mod amm;
-use amm::{
-    amm_add_liquidity, amm_remove_liquidity, amm_swap, initialize_amm, set_amm_pool,
-};
-pub use stellarlend_amm::{
-    AmmError, AmmProtocolConfig, AmmSettings, LiquidityParams, SwapParams,
-    TokenPair,
-};
+mod governance;
 
-pub mod governance;
+use storage::GuardianConfig;
+
+// Governance module
+use crate::types::{
+    GovernanceConfig, MultisigConfig, Proposal, ProposalOutcome, ProposalType, RecoveryRequest,
+    VoteInfo, VoteType,
+};
+// use crate::governance::self;
 
 /// The StellarLend core contract.
 ///
@@ -179,14 +181,13 @@ impl HelloContract {
         String::from_str(&env, "Hello")
     }
 
-    /// Initialize the contract with admin address and governance contract ID.
+    /// Initialize the contract with admin address.
     ///
     /// Sets up the risk management system and interest rate model with default parameters.
     /// Must be called before any other operations.
     ///
     /// # Arguments
     /// * `admin` - The admin address
-    /// * `governance_id` - The address of the deployed governance contract
     ///
     /// # Returns
     /// Returns Ok(()) on success
@@ -199,15 +200,13 @@ impl HelloContract {
         crate::admin::set_admin(&env, admin.clone(), None)
             .map_err(|_| RiskManagementError::Unauthorized)?;
         initialize_risk_management(&env, admin.clone())?;
-        // Initialize interest rate config with default parameters
-        initialize_interest_rate_config(&env, admin.clone()).map_err(|e| {
+        initialize_interest_rate_config(&env, admin).map_err(|e| {
             if e == InterestRateError::AlreadyInitialized {
                 RiskManagementError::AlreadyInitialized
             } else {
                 RiskManagementError::Unauthorized
             }
         })?;
-        // initialize_governance(&env, admin).map_err(|_| RiskManagementError::Unauthorized)?;
         Ok(())
     }
 
@@ -530,6 +529,7 @@ impl HelloContract {
     ) -> Result<soroban_sdk::Vec<analytics::ActivityEntry>, AnalyticsError> {
         get_user_activity_feed(&env, &user, limit, offset)
     }
+
     /// Update price feed from oracle
     pub fn update_price_feed(
         env: Env,
@@ -997,6 +997,326 @@ impl HelloContract {
         user: Address,
     ) -> Result<UserPositionSummary, CrossAssetError> {
         get_user_position_summary(&env, &user)
+    }
+
+    // ============================================================================
+    // Governance Entrypoints
+    // ============================================================================
+
+    /// Initialize governance module
+    ///
+    /// Sets up the governance system with voting token and parameters.
+    /// Must be called after contract initialization.
+    ///
+    /// # Arguments
+    /// * `admin` - The admin address
+    /// * `vote_token` - Token contract address used for voting
+    /// * `voting_period` - Optional voting duration in seconds
+    /// * `execution_delay` - Optional delay before execution in seconds
+    /// * `quorum_bps` - Optional quorum requirement in basis points
+    /// * `proposal_threshold` - Optional minimum tokens to create proposal
+    /// * `timelock_duration` - Optional timelock duration in seconds
+    /// * `default_voting_threshold` - Optional default voting threshold in basis points
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_initialize(
+        env: Env,
+        admin: Address,
+        vote_token: Address,
+        voting_period: Option<u64>,
+        execution_delay: Option<u64>,
+        quorum_bps: Option<u32>,
+        proposal_threshold: Option<i128>,
+        timelock_duration: Option<u64>,
+        default_voting_threshold: Option<i128>,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::initialize(
+            &env,
+            admin,
+            vote_token,
+            voting_period,
+            execution_delay,
+            quorum_bps,
+            proposal_threshold,
+            timelock_duration,
+            default_voting_threshold,
+        )
+    }
+
+    /// Create a new governance proposal
+    ///
+    /// # Arguments
+    /// * `proposer` - Address creating the proposal
+    /// * `proposal_type` - Type of proposal (parameter change, pause, etc.)
+    /// * `description` - Description of the proposal
+    /// * `voting_threshold` - Optional custom voting threshold
+    ///
+    /// # Returns
+    /// Returns the new proposal ID
+    pub fn gov_create_proposal(
+        env: Env,
+        proposer: Address,
+        proposal_type: ProposalType,
+        description: String,
+        voting_threshold: Option<i128>,
+    ) -> Result<u64, errors::GovernanceError> {
+        governance::create_proposal(&env, proposer, proposal_type, description, voting_threshold)
+    }
+
+    /// Cast a vote on a proposal
+    ///
+    /// # Arguments
+    /// * `voter` - Address casting the vote
+    /// * `proposal_id` - ID of the proposal to vote on
+    /// * `vote_type` - Vote choice (For, Against, Abstain)
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_vote(
+        env: Env,
+        voter: Address,
+        proposal_id: u64,
+        vote_type: VoteType,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::vote(&env, voter, proposal_id, vote_type)
+    }
+
+    /// Queue a successful proposal for execution
+    ///
+    /// # Arguments
+    /// * `caller` - Address queuing the proposal
+    /// * `proposal_id` - ID of the proposal to queue
+    ///
+    /// # Returns
+    /// Returns the proposal outcome
+    pub fn gov_queue_proposal(
+        env: Env,
+        caller: Address,
+        proposal_id: u64,
+    ) -> Result<ProposalOutcome, errors::GovernanceError> {
+        governance::queue_proposal(&env, caller, proposal_id)
+    }
+
+    /// Execute a queued proposal
+    ///
+    /// # Arguments
+    /// * `executor` - Address executing the proposal
+    /// * `proposal_id` - ID of the proposal to execute
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_execute_proposal(
+        env: Env,
+        executor: Address,
+        proposal_id: u64,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::execute_proposal(&env, executor, proposal_id)
+    }
+
+    /// Cancel a proposal
+    ///
+    /// Only proposer or admin can cancel.
+    ///
+    /// # Arguments
+    /// * `caller` - Address cancelling the proposal
+    /// * `proposal_id` - ID of the proposal to cancel
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_cancel_proposal(
+        env: Env,
+        caller: Address,
+        proposal_id: u64,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::cancel_proposal(&env, caller, proposal_id)
+    }
+
+    /// Approve a proposal as multisig admin
+    ///
+    /// # Arguments
+    /// * `approver` - Admin address approving the proposal
+    /// * `proposal_id` - ID of the proposal to approve
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_approve_proposal(
+        env: Env,
+        approver: Address,
+        proposal_id: u64,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::approve_proposal(&env, approver, proposal_id)
+    }
+
+    /// Set multisig configuration
+    ///
+    /// # Arguments
+    /// * `caller` - Caller address (must be admin)
+    /// * `admins` - Vector of admin addresses
+    /// * `threshold` - Number of approvals required
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_set_multisig_config(
+        env: Env,
+        caller: Address,
+        admins: Vec<Address>,
+        threshold: u32,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::set_multisig_config(&env, caller, admins, threshold)
+    }
+
+    /// Add a guardian
+    ///
+    /// # Arguments
+    /// * `caller` - Caller address (must be admin)
+    /// * `guardian` - Guardian address to add
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_add_guardian(
+        env: Env,
+        caller: Address,
+        guardian: Address,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::add_guardian(&env, caller, guardian)
+    }
+
+    /// Remove a guardian
+    ///
+    /// # Arguments
+    /// * `caller` - Caller address (must be admin)
+    /// * `guardian` - Guardian address to remove
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_remove_guardian(
+        env: Env,
+        caller: Address,
+        guardian: Address,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::remove_guardian(&env, caller, guardian)
+    }
+
+    /// Set guardian threshold
+    ///
+    /// # Arguments
+    /// * `caller` - Caller address (must be admin)
+    /// * `threshold` - Number of guardian approvals required for recovery
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_set_guardian_threshold(
+        env: Env,
+        caller: Address,
+        threshold: u32,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::set_guardian_threshold(&env, caller, threshold)
+    }
+
+    /// Start recovery process
+    ///
+    /// # Arguments
+    /// * `initiator` - Guardian initiating recovery
+    /// * `old_admin` - Current admin to replace
+    /// * `new_admin` - New admin address
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_start_recovery(
+        env: Env,
+        initiator: Address,
+        old_admin: Address,
+        new_admin: Address,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::start_recovery(&env, initiator, old_admin, new_admin)
+    }
+
+    /// Approve recovery
+    ///
+    /// # Arguments
+    /// * `approver` - Guardian approving recovery
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_approve_recovery(
+        env: Env,
+        approver: Address,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::approve_recovery(&env, approver)
+    }
+
+    /// Execute recovery
+    ///
+    /// # Arguments
+    /// * `executor` - Address executing recovery
+    ///
+    /// # Returns
+    /// Returns Ok(()) on success
+    pub fn gov_execute_recovery(
+        env: Env,
+        executor: Address,
+    ) -> Result<(), errors::GovernanceError> {
+        governance::execute_recovery(&env, executor)
+    }
+
+    // ============================================================================
+    // Governance Query Functions
+    // ============================================================================
+
+    /// Get proposal by ID
+    pub fn gov_get_proposal(env: Env, proposal_id: u64) -> Option<Proposal> {
+        governance::get_proposal(&env, proposal_id)
+    }
+
+    /// Get vote information
+    pub fn gov_get_vote(env: Env, proposal_id: u64, voter: Address) -> Option<VoteInfo> {
+        governance::get_vote(&env, proposal_id, voter)
+    }
+
+    /// Get governance configuration
+    pub fn gov_get_config(env: Env) -> Option<GovernanceConfig> {
+        governance::get_config(&env)
+    }
+
+    /// Get governance admin
+    pub fn gov_get_admin(env: Env) -> Option<Address> {
+        governance::get_admin(&env)
+    }
+
+    /// Get multisig configuration
+    pub fn gov_get_multisig_config(env: Env) -> Option<MultisigConfig> {
+        governance::get_multisig_config(&env)
+    }
+
+    /// Get guardian configuration
+    pub fn gov_get_guardian_config(env: Env) -> Option<GuardianConfig> {
+        governance::get_guardian_config(&env)
+    }
+
+    /// Get proposal approvals
+    pub fn gov_get_proposal_approvals(env: Env, proposal_id: u64) -> Option<Vec<Address>> {
+        governance::get_proposal_approvals(&env, proposal_id)
+    }
+
+    /// Get current recovery request
+    pub fn gov_get_recovery_request(env: Env) -> Option<RecoveryRequest> {
+        governance::get_recovery_request(&env)
+    }
+
+    /// Get recovery approvals
+    pub fn gov_get_recovery_approvals(env: Env) -> Option<Vec<Address>> {
+        governance::get_recovery_approvals(&env)
+    }
+
+    /// Get paginated list of proposals
+    pub fn gov_get_proposals(env: Env, start_id: u64, limit: u32) -> Vec<Proposal> {
+        governance::get_proposals(&env, start_id, limit)
+    }
+
+    /// Check if an address can vote on a proposal
+    pub fn gov_can_vote(env: Env, voter: Address, proposal_id: u64) -> bool {
+        governance::can_vote(&env, voter, proposal_id)
     }
 
     // --- Bridge ---
